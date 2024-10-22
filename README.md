@@ -10,7 +10,7 @@
 
 ## Download
 
-[scrcpy-24-10-20-all.apk](https://github.com/zwc456baby/ScrcpyForAndroid/releases/download/v1.0/scrcpy-24-10-20-all.apk)
+[scrcpy-release.apk](https://github.com/zwc456baby/ScrcpyForAndroid/releases)
 
 
 ![home](home.jpg)
