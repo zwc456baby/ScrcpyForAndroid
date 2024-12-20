@@ -1,0 +1,52 @@
+<resources>
+    <string name="app_name">Scrcpy</string>
+
+    <string name="label_server_ip">Remote Device IP address, For example: 192.168.0.73</string>
+    <string name="label_video_resolution">Resolution</string>
+    <string name="label_video_bitrate">Bitrate</string>
+    <string name="label_x">x</string>
+    <string name="action_start">Start</string>
+    <string name="appswitch_button">=</string>
+    <string name="home_button">o</string>
+    <string name="back_button">\u003C</string>
+    <string name="switch0">Viewing mode (no control)</string>
+    <string name="switch1">Bottom control button (back button)</string>
+
+    <string name="connect_tips">Tips: You need to enable wireless debugging on your phone\n\t\tReset adb port command: adb tcpip 5555</string>
+    <string name="please_wait">Connecting …</string>
+
+    <string name="connect_faild">Connection failed</string>
+    <string name="connect_faild_ask">Do you want to retry the connection?</string>
+
+    <string name="disconnect">Disconnect</string>
+    <string name="disconnect_ask">The connection is detected to be disconnected, please exit and reconnect</string>
+
+    <string name="need_register">Registration required</string>
+
+    <string-array name="options_resolution_values">
+        <item>1920x1080</item>
+        <item>1600x720</item>
+        <item>1280x720</item>
+        <item>1200x540</item>
+        <item>960x720</item>
+        <item>800x448</item>
+        <item>640x360</item>
+    </string-array>
+
+    <string-array name="options_bitrate_keys">
+        <item>6 Mbps</item>
+        <item>4 Mbps</item>
+        <item>2 Mbps</item>
+        <item>1 Mbps</item>
+    </string-array>
+
+    <integer-array name="options_bitrate_values">
+        <item>6144000</item>
+        <item>4096000</item>
+        <item>2048000</item>
+        <item>1024000</item>
+    </integer-array>
+
+</resources>
+
+

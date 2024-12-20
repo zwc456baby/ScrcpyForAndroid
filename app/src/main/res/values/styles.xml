@@ -1,0 +1,22 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="android:Theme.DeviceDefault.Light.NoActionBar">
+        <!-- Customize your theme here. -->
+        <!--        <item name="android:textColor">@color/white</item>-->
+        <item name="android:textColorHint">#A8AAB5</item>
+        <item name="android:colorPrimaryDark" tools:ignore="NewApi">#3C93F0
+        </item>  <!--这一句控制状态栏背景颜色-->
+
+        <!--    spinner 下拉文本颜色    -->
+        <!--        <item name="android:spinnerDropDownItemStyle">@style/mySpinnerItemStyle</item>-->
+        <item name="android:spinnerItemStyle">@style/mySpinnerItemStyle</item>
+
+        <!--给window窗口设置背景图-->
+        <item name="android:windowBackground">@color/theme_color</item>
+    </style>
+
+    <style name="mySpinnerItemStyle" parent="@android:style/Widget.Holo.DropDownItem.Spinner">
+        <item name="android:textColor">@color/white</item>
+    </style>
+</resources>

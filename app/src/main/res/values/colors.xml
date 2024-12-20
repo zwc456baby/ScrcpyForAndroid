@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <color name="white">#f5f5f5</color>
+    <color name="black">#000000</color>
+
+    <color name="status_bar">#3C93F0</color>
+
+
+    <color name="theme_color">#1D2228</color>
+</resources>

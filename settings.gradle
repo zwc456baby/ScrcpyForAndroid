@@ -1,0 +1,17 @@
+
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    plugins {
+        id("org.lsposed.lsparanoid") version "0.6.0"
+        // alias(libs.plugins.kotlinAndroid)
+    }
+}
+//plugins{
+//    id("org.lsposed.lsparanoid") version "0.6.0"
+//}
+
+include ':server', ':app'

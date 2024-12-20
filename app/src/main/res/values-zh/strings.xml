@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">安卓控</string>
+
+    <string name="label_server_ip">手机的IP地址,例如: 192.168.0.73</string>
+    <string name="label_video_resolution">传输分辨率</string>
+    <string name="label_video_bitrate">带宽码率</string>
+    <string name="label_x">x</string>
+    <string name="action_start">启动连接</string>
+    <string name="appswitch_button">=</string>
+    <string name="home_button">o</string>
+    <string name="back_button">\u003C</string>
+    <string name="switch0">观看模式 (不进行控制)</string>
+    <string name="switch1">底部控制按钮 (返回键)</string>
+    <string name="connect_tips">Tips: 需要开启手机的无线调试\n\t\t重置adb端口命令:adb tcpip 5555</string>
+    <string name="please_wait">连接中 …</string>
+
+    <string name="connect_faild">连接失败</string>
+    <string name="connect_faild_ask">是否重试连接?</string>
+
+    <string name="disconnect">断开连接</string>
+    <string name="disconnect_ask">检测到连接已断开，请退出后重新连接</string>
+
+    <string name="need_register">需要注册</string>
+</resources>
+
+
