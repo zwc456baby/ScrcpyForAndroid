@@ -10,6 +10,7 @@ import android.os.IBinder;
 import android.util.Log;
 import android.view.Surface;
 
+import org.server.scrcpy.audio.AudioCaptureException;
 import org.server.scrcpy.model.MediaPacket;
 import org.server.scrcpy.model.VideoPacket;
 import org.server.scrcpy.wrappers.DisplayManager;
@@ -106,6 +107,29 @@ public class ScreenEncoder implements Device.RotationListener {
         return rotationChanged.getAndSet(false);
     }
 
+    /**
+     * 开启音频流转发
+     *
+     * @param outputStream
+     */
+    private void startAudioCapture(OutputStream outputStream) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                AudioEncoder audioEncoder = new AudioEncoder(128000);
+                try {
+                    audioEncoder.streamScreen(outputStream);
+                } catch (IOException e) {
+                    Ln.e("audio capture IOException", e);
+                } catch (AudioCaptureException e) {
+                    Ln.e("audio capture AudioCaptureException", e);
+                } catch (Exception e) {
+                    Ln.e("audio capture Exception", e);
+                }
+            }
+        }).start();
+    }
+
     public void streamScreen(Device device, OutputStream outputStream) throws IOException {
         // Log.d("ScreenCapture", buildDisplayListMessage());
         int[] buf = new int[]{device.getScreenInfo().getDeviceSize().getWidth(), device.getScreenInfo().getDeviceSize().getHeight()};
@@ -118,6 +142,9 @@ public class ScreenEncoder implements Device.RotationListener {
             array[j * 4 + 3] = (byte) (c & 0xFF);
         }
         outputStream.write(array, 0, array.length);   // Sending device resolution
+
+        startAudioCapture(outputStream);  // start audio capture
+
         MediaFormat format = createFormat(bitRate, frameRate, iFrameInterval);
         device.setRotationListener(this);
         boolean alive;

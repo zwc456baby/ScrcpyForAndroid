@@ -51,6 +51,13 @@ public final class Ln {
         }
     }
 
+    public static void e(String message) {
+        if (isEnabled(Level.ERROR)) {
+            Log.e(TAG, message);
+            System.out.println("ERROR: " + message);
+        }
+    }
+
     enum Level {
         DEBUG,
         INFO,

@@ -113,3 +113,14 @@
     public static void main(***);
 }
 
+# 保留所有包中原始接口文件不进行混淆
+-keep interface * { *; }
+-keep interface * extends * { *; }
+-keepclassmembers interface * { *;}
+-keepclassmembernames interface * { *;}
+-keepclasseswithmembernames interface * { *;}
+
+
+-keep class org.server.scrcpy.util.FakeContext{ *; }
+-keep class org.server.scrcpy.util.FakeContext.**{ *; }
+-keep class org.server.scrcpy.util.FakeContext$*{ *; }

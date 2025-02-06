@@ -9,7 +9,7 @@ android {
     compileSdkVersion 31
     defaultConfig {
         applicationId "org.server.scrcpy"
-        minSdkVersion 19
+        minSdkVersion 21
         targetSdkVersion 31
         versionCode 3
         versionName "1.2"
