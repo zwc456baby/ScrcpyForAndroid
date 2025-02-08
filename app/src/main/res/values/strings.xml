@@ -1,8 +1,9 @@
 <resources>
-    <string name="app_name">Scrcpy</string>
+    <string name="app_name">ScrcpyForAndroid</string>
 
     <string name="label_server_ip">Remote Device IP address, For example: 192.168.0.73</string>
     <string name="label_video_resolution">Resolution</string>
+    <string name="delay_control">Delay Control</string>
     <string name="label_video_bitrate">Bitrate</string>
     <string name="label_x">x</string>
     <string name="action_start">Start</string>
@@ -32,6 +33,18 @@
         <item>800x448</item>
         <item>640x360</item>
     </string-array>
+
+    <string-array name="options_delay_keys">
+        <item>Hight (100ms)</item>
+        <item>Medium (60ms)</item>
+        <item>Low (30ms)</item>
+    </string-array>
+
+    <integer-array name="options_delay_values">
+        <item>100</item>
+        <item>60</item>
+        <item>30</item>
+    </integer-array>
 
     <string-array name="options_bitrate_keys">
         <item>6 Mbps</item>

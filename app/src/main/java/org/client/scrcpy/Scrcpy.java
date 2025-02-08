@@ -9,7 +9,9 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.Surface;
 
+import org.client.scrcpy.decoder.AudioDecoder;
 import org.client.scrcpy.decoder.VideoDecoder;
+import org.client.scrcpy.model.AudioPacket;
 import org.client.scrcpy.model.ByteUtils;
 import org.client.scrcpy.model.MediaPacket;
 import org.client.scrcpy.model.VideoPacket;
@@ -19,6 +21,8 @@ import org.lsposed.lsparanoid.Obfuscate;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -42,9 +46,11 @@ public class Scrcpy extends Service {
     private final Queue<byte[]> event = new LinkedList<byte[]>();
     // private byte[] event = null;
     private VideoDecoder videoDecoder;
+    private AudioDecoder audioDecoder;
     private final AtomicBoolean updateAvailable = new AtomicBoolean(false);
     private final IBinder mBinder = new MyServiceBinder();
     private boolean first_time = true;
+
     private final AtomicBoolean LetServceRunning = new AtomicBoolean(true);
     private ServiceCallbacks serviceCallbacks;
     private final int[] remote_dev_resolution = new int[2];
@@ -64,14 +70,22 @@ public class Scrcpy extends Service {
         this.screenWidth = NewWidth;
         this.screenHeight = NewHeight;
         this.surface = NewSurface;
+
         videoDecoder.start();
+        audioDecoder.start();
+
+
         updateAvailable.set(true);
 
     }
 
-    public void start(Surface surface, String serverAdr, int screenHeight, int screenWidth) {
+    public void start(Surface surface, String serverAdr, int screenHeight, int screenWidth, int delay) {
         this.videoDecoder = new VideoDecoder();
         videoDecoder.start();
+
+        this.audioDecoder = new AudioDecoder();
+        audioDecoder.start();
+
         String[] serverInfo = Util.getServerHostAndPort(serverAdr);
         this.serverHost = serverInfo[0];
         this.serverPort = Integer.parseInt(serverInfo[1]);
@@ -82,7 +96,7 @@ public class Scrcpy extends Service {
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                startConnection(serverHost, serverPort);
+                startConnection(serverHost, serverPort, delay);
             }
         });
         thread.start();
@@ -92,11 +106,18 @@ public class Scrcpy extends Service {
         if (videoDecoder != null) {
             videoDecoder.stop();
         }
+
+        if (audioDecoder != null) {
+            audioDecoder.stop();
+        }
     }
 
     public void resume() {
         if (videoDecoder != null) {
             videoDecoder.start();
+        }
+        if (audioDecoder != null) {
+            audioDecoder.start();
         }
         updateAvailable.set(true);
     }
@@ -105,6 +126,9 @@ public class Scrcpy extends Service {
         LetServceRunning.set(false);
         if (videoDecoder != null) {
             videoDecoder.stop();
+        }
+        if (audioDecoder != null) {
+            audioDecoder.stop();
         }
         stopSelf();
     }
@@ -171,26 +195,21 @@ public class Scrcpy extends Service {
         }
     }
 
-    private void startConnection(String ip, int port) {
+    private void startConnection(String ip, int port, int delay) {
+
         videoDecoder = new VideoDecoder();
         videoDecoder.start();
+        audioDecoder = new AudioDecoder();
+        audioDecoder.start();
+
         DataInputStream dataInputStream = null;
         DataOutputStream dataOutputStream = null;
         Socket socket = null;
-        VideoPacket.StreamSettings streamSettings = null;
         boolean firstConnect = true;
         int attempts = 50;
         while (attempts > 0) {
             try {
-//                Log.e("Scrcpy","Connecting to " + serverAdr);
-//                socket = new Socket(serverHost, 7007);
                 Log.e("Scrcpy", "Connecting to " + LOCAL_IP);
-//                try {
-//                    //TODO: 转发和启动需要一定的时间，如果直接连接，可能导致失败
-//                    Thread.sleep(2000);
-//                } catch (InterruptedException e) {
-//                    throw new RuntimeException(e);
-//                }
                 socket = new Socket(ip, port);
                 Log.e("Scrcpy", "Connecting to " + LOCAL_IP + " success");
 
@@ -216,7 +235,6 @@ public class Scrcpy extends Service {
 
 
                 dataOutputStream = new DataOutputStream(socket.getOutputStream());
-                byte[] packetSize;
                 attempts = 0;
                 byte[] buf = new byte[16];
                 dataInputStream.read(buf, 0, 16);
@@ -233,84 +251,25 @@ public class Scrcpy extends Service {
                     remote_dev_resolution[1] = i;
                 }
                 socket_status = true;
-//                    Log.e("Remote device res", String.valueOf(remote_dev_resolution[0]+" x "+remote_dev_resolution[1]));
-                while (LetServceRunning.get()) {
-                    try {
-                        byte[] sendevent = event.poll();
-                        if (sendevent != null) {
-                            try {
-                                dataOutputStream.write(sendevent, 0, sendevent.length);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                                if (serviceCallbacks != null) {
-                                    serviceCallbacks.errorDisconnect();
-                                }
-                                LetServceRunning.set(false);
-                            } finally {
-                                // event = null;
-                            }
-                        }
 
-                        if (dataInputStream.available() > 0) {
-                            packetSize = new byte[4];
-                            dataInputStream.readFully(packetSize, 0, 4);
-                            int size = ByteUtils.bytesToInt(packetSize);
-                            byte[] packet = new byte[size];
-                            dataInputStream.readFully(packet, 0, size);
-                            VideoPacket videoPacket = VideoPacket.fromArray(packet);
-                            if (videoPacket.type == MediaPacket.Type.VIDEO) {
-                                byte[] data = videoPacket.data;
-                                if (videoPacket.flag == VideoPacket.Flag.CONFIG || updateAvailable.get()) {
-                                    if (!updateAvailable.get()) {
-                                        streamSettings = VideoPacket.getStreamSettings(data);
-                                        if (!first_time) {
-                                            if (serviceCallbacks != null) {
-                                                serviceCallbacks.loadNewRotation();
-                                            }
-                                            while (!updateAvailable.get()) {
-                                                // Waiting for new surface
-                                                try {
-                                                    Thread.sleep(100);
-                                                } catch (InterruptedException e) {
-                                                    e.printStackTrace();
-                                                }
-                                            }
-
-                                        }
-                                    }
-                                    updateAvailable.set(false);
-                                    //                                   first_time = false;
-                                    videoDecoder.configure(surface, screenWidth, screenHeight, streamSettings.sps, streamSettings.pps);
-                                } else if (videoPacket.flag == VideoPacket.Flag.END) {
-                                    // need close stream
-                                    Log.e("Scrcpy", "END ... ");
-                                } else {
-                                    videoDecoder.decodeSample(data, 0, data.length, 0, videoPacket.flag.getFlag());
-                                }
-                                first_time = false;
-                            }
-
-                        }
-                    } catch (IOException e) {
-                        Log.e("Scrcpy", "IOException: " + e.getMessage());
-                        e.printStackTrace();
-                    }
-                }
+                loop(dataInputStream, dataOutputStream, delay);
 
             } catch (Exception e) {
                 e.printStackTrace();
-                attempts--;
-                if (attempts < 0) {
-                    socket_status = false;
+                if (LetServceRunning.get()) {
+                    attempts--;
+                    if (attempts < 0) {
+                        socket_status = false;
 
-                    if (serviceCallbacks != null) {
-                        serviceCallbacks.errorDisconnect();
+                        if (serviceCallbacks != null) {
+                            serviceCallbacks.errorDisconnect();
+                        }
+                        return;
                     }
-                    return;
-                }
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException ignore) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException ignore) {
+                    }
                 }
                 Log.e("Scrcpy", e.getMessage());
                 Log.e("Scrcpy", "attempts--");
@@ -322,14 +281,14 @@ public class Scrcpy extends Service {
                         e.printStackTrace();
                     }
                 }
-                if(dataOutputStream != null){
+                if (dataOutputStream != null) {
                     try {
                         dataOutputStream.close();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
-                if(dataInputStream != null){
+                if (dataInputStream != null) {
                     try {
                         dataInputStream.close();
                     } catch (IOException e) {
@@ -343,6 +302,136 @@ public class Scrcpy extends Service {
 
         }
 
+    }
+
+    private void loop(DataInputStream dataInputStream, DataOutputStream dataOutputStream, int delay) throws InterruptedException {
+        VideoPacket.StreamSettings streamSettings = null;
+        byte[] packetSize = new byte[4];
+
+        // 由于网络传输存在延迟，丢弃数据包计数
+        long lastVideoOffset = 0;
+        long lastAudioOffset = 0;
+        int videoPassCount = 0;
+        int audioPassCount = 0;
+
+        while (LetServceRunning.get()) {
+            boolean waitEvent = true;
+            try {
+                byte[] sendevent = event.poll();
+                if (sendevent != null) {
+                    waitEvent = false;
+                    try {
+                        dataOutputStream.write(sendevent, 0, sendevent.length);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        if (serviceCallbacks != null) {
+                            serviceCallbacks.errorDisconnect();
+                        }
+                        LetServceRunning.set(false);
+                    } finally {
+                        // event = null;
+                    }
+                }
+
+                if (dataInputStream.available() > 0) {
+                    waitEvent = false;
+                    dataInputStream.readFully(packetSize, 0, 4);
+                    int size = ByteUtils.bytesToInt(packetSize);
+                    if (size > 4 * 1024 * 1024) {  // 如果单个数据包大于 4m ，直接断开连接
+                        if (serviceCallbacks != null) {
+                            serviceCallbacks.errorDisconnect();
+                        }
+                        LetServceRunning.set(false);
+                        return;
+                    }
+                    byte[] packet = new byte[size];
+                    dataInputStream.readFully(packet, 0, size);
+                    if (MediaPacket.Type.getType(packet[0]) == MediaPacket.Type.VIDEO) {
+                        VideoPacket videoPacket = VideoPacket.readHead(packet);
+                        // byte[] data = videoPacket.data;
+                        if (videoPacket.flag == VideoPacket.Flag.CONFIG || updateAvailable.get()) {
+                            if (!updateAvailable.get()) {
+                                int dataLength = packet.length - VideoPacket.getHeadLen();
+                                byte[] data = new byte[dataLength];
+                                System.arraycopy(packet, VideoPacket.getHeadLen(), data, 0, dataLength);
+                                streamSettings = VideoPacket.getStreamSettings(data);
+                                if (!first_time) {
+                                    if (serviceCallbacks != null) {
+                                        serviceCallbacks.loadNewRotation();
+                                    }
+                                    while (!updateAvailable.get()) {
+                                        // Waiting for new surface
+                                        try {
+                                            Thread.sleep(100);
+                                        } catch (InterruptedException e) {
+                                            e.printStackTrace();
+                                        }
+                                    }
+
+                                }
+                            }
+                            updateAvailable.set(false);
+                            if (streamSettings != null) {
+                                videoDecoder.configure(surface, screenWidth, screenHeight, streamSettings.sps, streamSettings.pps);
+                            }
+                        } else if (videoPacket.flag == VideoPacket.Flag.END) {
+                            // need close stream
+                            Log.e("Scrcpy", "END ... ");
+                        } else {
+                            Log.e("Scrcpy", "videoPacket presentationTimeStamp ... " + videoPacket.presentationTimeStamp);
+                            // 帧在 100 ms 以内
+                            if (lastVideoOffset == 0) {
+                                lastVideoOffset = System.currentTimeMillis() - (videoPacket.presentationTimeStamp / 1000);
+                            }
+                            if (videoPacket.flag == VideoPacket.Flag.KEY_FRAME) {
+                                videoDecoder.decodeSample(packet, VideoPacket.getHeadLen(), packet.length - VideoPacket.getHeadLen(),
+                                        0, videoPacket.flag.getFlag());
+                            } else {
+                                if (System.currentTimeMillis() - (lastVideoOffset + (videoPacket.presentationTimeStamp / 1000)) < delay) {
+                                    videoPassCount = 0;
+                                    videoDecoder.decodeSample(packet, VideoPacket.getHeadLen(), packet.length - VideoPacket.getHeadLen(),
+                                            0, videoPacket.flag.getFlag());
+                                } else {
+                                    videoPassCount++;
+                                }
+                            }
+                        }
+                        first_time = false;
+                    } else if (MediaPacket.Type.getType(packet[0]) == MediaPacket.Type.AUDIO) {
+                        AudioPacket audioPacket = AudioPacket.readHead(packet);
+                        // byte[] data = audioPacket.data;
+                        if (audioPacket.flag == AudioPacket.Flag.CONFIG) {
+                            int dataLength = packet.length - AudioPacket.getHeadLen();
+                            byte[] data = new byte[dataLength];
+                            System.arraycopy(packet, AudioPacket.getHeadLen(), data, 0, dataLength);
+                            audioDecoder.configure(data);
+                        } else if (audioPacket.flag == AudioPacket.Flag.END) {
+                            // need close stream
+                            Log.e("Scrcpy", "Audio END ... ");
+                        } else {
+                            if (lastAudioOffset == 0) {
+                                lastAudioOffset = System.currentTimeMillis() - (audioPacket.presentationTimeStamp / 1000);
+                            }
+                            if (System.currentTimeMillis() - (lastAudioOffset + (audioPacket.presentationTimeStamp / 1000)) < delay) {
+                                audioPassCount = 0;
+                                audioDecoder.decodeSample(packet, VideoPacket.getHeadLen(), packet.length - AudioPacket.getHeadLen(),
+                                        0, audioPacket.flag.getFlag());
+                            } else {
+                                audioPassCount++;
+                            }
+                        }
+                    }
+
+                }
+            } catch (IOException e) {
+                Log.e("Scrcpy", "IOException: " + e.getMessage());
+                e.printStackTrace();
+            } finally {
+                if (waitEvent) {
+                    Thread.sleep(5);
+                }
+            }
+        }
     }
 
     public interface ServiceCallbacks {

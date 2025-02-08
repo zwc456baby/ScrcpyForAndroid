@@ -59,7 +59,7 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
             scrcpy.setServiceCallbacks(ScrcpyHost.this);
             serviceBound = true;
             if (first_time) {
-                scrcpy.start(surface, serverAdr, screenHeight, screenWidth);
+                scrcpy.start(surface, serverAdr, screenHeight, screenWidth, 50);
                 int count = 100;
                 while (count != 0 && !scrcpy.check_socket_connection()) {
                     count--;

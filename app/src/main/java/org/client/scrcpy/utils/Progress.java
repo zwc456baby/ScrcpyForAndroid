@@ -4,7 +4,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.os.PowerManager;
 import android.text.TextUtils;
 
 public final class Progress {

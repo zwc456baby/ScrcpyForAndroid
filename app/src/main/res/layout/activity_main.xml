@@ -46,20 +46,6 @@
             android:orientation="vertical"
             tools:context=".MainActivity">
 
-            <org.client.scrcpy.MarkdownView
-                android:id="@+id/tips_tv"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="10dp"
-                android:layout_marginTop="5dp"
-                android:layout_marginRight="10dp"
-                android:layout_marginBottom="5dp"
-                android:background="#323540"
-                android:padding="10dp"
-                android:text="@string/connect_tips"
-                android:textColor="@color/white" />
-
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -191,6 +177,39 @@
 
             </LinearLayout>
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginRight="10dp"
+                android:background="#323540"
+                android:orientation="vertical"
+                android:paddingLeft="10dp"
+                android:paddingTop="5dp"
+                android:paddingRight="10dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/delay_control"
+                    android:textAppearance="@android:style/TextAppearance"
+                    android:textColor="@color/white"
+                    android:textSize="16sp" />
+
+                <Spinner
+                    android:id="@+id/delay_control_spinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"
+                    android:layout_marginRight="20dp"
+                    android:entries="@array/options_delay_keys"
+                    android:minHeight="48dp"
+                    android:textColor="@color/white"
+                    tools:ignore="DuplicateSpeakableTextCheck" />
+
+            </LinearLayout>
+
             <Switch
                 android:id="@+id/switch0"
                 android:layout_width="match_parent"
@@ -237,6 +256,20 @@
                 android:text="@string/action_start"
                 android:textColor="@color/white"
                 android:textSize="16sp" />
+
+            <org.client.scrcpy.MarkdownView
+                android:id="@+id/tips_tv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginBottom="5dp"
+                android:background="#323540"
+                android:padding="10dp"
+                android:text="@string/connect_tips"
+                android:textColor="@color/white" />
+
 
         </LinearLayout>
     </ScrollView>

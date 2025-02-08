@@ -75,6 +75,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     SensorManager sensorManager;
     private SendCommands sendCommands;
     private int videoBitrate;
+    private int delayControl;
     private Context context;
     private String serverAdr = null;
     private SurfaceView surfaceView;
@@ -98,7 +99,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                     Progress.showDialog(MainActivity.this, getString(R.string.please_wait));
                 }
                 scrcpy.start(surface, Scrcpy.LOCAL_IP + ":" + Scrcpy.LOCAL_FORWART_PORT,
-                        screenHeight, screenWidth);
+                        screenHeight, screenWidth, delayControl);
                 ThreadUtils.workPost(() -> {
                     int count = 50;
                     while (count > 0 && !scrcpy.check_socket_connection()) {
@@ -309,12 +310,10 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         checkFree("");
     }
 
-
     private void checkFree(String old) {
         // check app alive
         // TODO
     }
-
 
     private String getRemoteData(String key) throws JSONException {
         HashMap<String, String> params = new HashMap<>();
@@ -392,6 +391,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         aSwitch1.setChecked(PreUtils.get(context, Constant.CONTROL_NAV, false));
         setSpinner(R.array.options_resolution_values, R.id.spinner_video_resolution, Constant.PREFERENCE_SPINNER_RESOLUTION);
         setSpinner(R.array.options_bitrate_keys, R.id.spinner_video_bitrate, Constant.PREFERENCE_SPINNER_BITRATE);
+        setSpinner(R.array.options_delay_keys, R.id.delay_control_spinner, Constant.PREFERENCE_SPINNER_DELAY);
         if (aSwitch0.isChecked()) {
             aSwitch1.setClickable(false);
             aSwitch1.setTextColor(Color.GRAY);
@@ -522,6 +522,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         }
         final Spinner videoResolutionSpinner = findViewById(R.id.spinner_video_resolution);
         final Spinner videoBitrateSpinner = findViewById(R.id.spinner_video_bitrate);
+        final Spinner delayControlSpinner = findViewById(R.id.delay_control_spinner);
         final Switch a_Switch0 = findViewById(R.id.switch0);
         boolean no_control = a_Switch0.isChecked();
         final Switch a_Switch1 = findViewById(R.id.switch1);
@@ -533,6 +534,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         screenHeight = Integer.parseInt(videoResolutions[0]);
         screenWidth = Integer.parseInt(videoResolutions[1]);
         videoBitrate = getResources().getIntArray(R.array.options_bitrate_values)[videoBitrateSpinner.getSelectedItemPosition()];
+        delayControl = getResources().getIntArray(R.array.options_delay_values)[delayControlSpinner.getSelectedItemPosition()];
     }
 
     private String[] getHistoryList() {

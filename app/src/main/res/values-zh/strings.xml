@@ -3,6 +3,7 @@
 
     <string name="label_server_ip">手机的IP地址,例如: 192.168.0.73</string>
     <string name="label_video_resolution">传输分辨率</string>
+    <string name="delay_control">延迟控制</string>
     <string name="label_video_bitrate">带宽码率</string>
     <string name="label_x">x</string>
     <string name="action_start">启动连接</string>
