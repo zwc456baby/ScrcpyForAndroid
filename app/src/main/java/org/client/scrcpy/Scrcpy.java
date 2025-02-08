@@ -378,7 +378,7 @@ public class Scrcpy extends Service {
                             // need close stream
                             Log.e("Scrcpy", "END ... ");
                         } else {
-                            Log.e("Scrcpy", "videoPacket presentationTimeStamp ... " + videoPacket.presentationTimeStamp);
+                            // Log.e("Scrcpy", "videoPacket presentationTimeStamp ... " + videoPacket.presentationTimeStamp);
                             // 帧在 100 ms 以内
                             if (lastVideoOffset == 0) {
                                 lastVideoOffset = System.currentTimeMillis() - (videoPacket.presentationTimeStamp / 1000);

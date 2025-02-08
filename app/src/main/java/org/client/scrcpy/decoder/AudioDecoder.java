@@ -145,7 +145,7 @@ public class AudioDecoder {
                             if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == MediaCodec.BUFFER_FLAG_END_OF_STREAM) {
                                 break;
                             }
-                            Log.e("Scrcpy", "Audio success get frame: " + index);
+                            // Log.e("Scrcpy", "Audio success get frame: " + index);
 
                             // 读取 pcm 数据，写入 audiotrack 播放
                             ByteBuffer outputBuffer = mCodec.getOutputBuffer(index);
