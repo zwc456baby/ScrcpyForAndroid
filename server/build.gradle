@@ -26,39 +26,35 @@ android {
         }
     }
 
-    task copyRelease(dependsOn: 'deleteServer', type: Copy){
-        from file('build/outputs/apk/release/server-release-unsigned.apk')
-        into file('../app/src/main/assets')
-        rename('server-release-unsigned.apk', 'scrcpy-server.jar')
-    }
+    task copyServer(dependsOn: 'deleteServer', type: Copy) {
+        def release_file='build/outputs/apk/release/server-release-unsigned.apk'
+        def debug_file='build/outputs/apk/debug/server-debug.apk'
+        def file_dest='../app/src/main/assets/'
+        def buildType = project.hasProperty('buildType') ? project.buildType : 'Debug'
+        if(buildType == "Debug"){
+            from file(debug_file)
+            into file(file_dest)
+        }else{
+            from file(release_file)
+            into file(file_dest)
+        }
+        rename { fileName -> 
+            'scrcpy-server.jar' 
+        }
 
+    }
     task deleteServer(type: Delete){
         delete "../app/src/main/assets/scrcpy-server.jar"
     }
 
     tasks.whenTaskAdded { task ->
-        if (task.name == 'assembleRelease') {
-            task.finalizedBy(copyRelease)
-        }
-    }
-    
-    task copyDebug (dependsOn: 'deleteServer', type: Copy){
-        from file("build/outputs/apk/debug/server-debug.apk")
-        into file("../app/src/main/assets/")
-        rename('server-debug.apk', 'scrcpy-server.jar')
-    }
-
-    tasks.whenTaskAdded { task ->
-        if (task.name == 'assembleDebug') {
-            task.finalizedBy(copyDebug)
-        }
+        task.finalizedBy(copyServer)
     }
     afterEvaluate {
-        packageRelease.finalizedBy(copyRelease)
+        packageRelease.finalizedBy(copyServer)
     }
-
     afterEvaluate {
-        packageDebug.finalizedBy(copyDebug)
+        packageDebug.finalizedBy(copyServer)
     }
 }
 
