@@ -4,10 +4,8 @@ import android.annotation.SuppressLint;
 import android.os.IBinder;
 import android.os.IInterface;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.lang.reflect.Method;
-@Obfuscate
 @SuppressLint("PrivateApi")
 public final class ServiceManager {
     private static final Method getServiceMethod;

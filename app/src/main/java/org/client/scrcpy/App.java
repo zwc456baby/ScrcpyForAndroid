@@ -11,13 +11,11 @@ import android.util.Log;
 import org.client.scrcpy.utils.ExecUtil;
 import org.client.scrcpy.utils.PreUtils;
 import org.client.scrcpy.utils.ThreadUtils;
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.UUID;
 
-@Obfuscate
 public class App extends Application implements Application.ActivityLifecycleCallbacks {
 
     @SuppressLint("StaticFieldLeak")

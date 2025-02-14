@@ -1,11 +1,9 @@
 package org.server.scrcpy;
 
-import org.lsposed.lsparanoid.Obfuscate;
 import org.server.scrcpy.util.Workarounds;
 
 import java.io.IOException;
 
-@Obfuscate
 public final class Server {
 
     private static String ip = null;

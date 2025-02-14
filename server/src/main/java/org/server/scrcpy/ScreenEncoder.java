@@ -16,14 +16,12 @@ import org.server.scrcpy.model.VideoPacket;
 import org.server.scrcpy.wrappers.DisplayManager;
 import org.server.scrcpy.wrappers.ServiceManager;
 import org.server.scrcpy.wrappers.SurfaceControl;
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@Obfuscate
 public class ScreenEncoder implements Device.RotationListener {
 
     private static final int DEFAULT_FRAME_RATE = 60; // fps

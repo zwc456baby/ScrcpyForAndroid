@@ -1,10 +1,8 @@
 package org.server.scrcpy.util;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.InputStream;
 import java.util.Scanner;
-@Obfuscate
 public final class IO {
     private IO() {
         // not instantiable

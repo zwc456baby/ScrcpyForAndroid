@@ -1,6 +1,5 @@
 package org.client.scrcpy.utils;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -9,7 +8,6 @@ import java.net.URLConnection;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
-@Obfuscate
 public class HttpRequest {
     /**
      * 向指定URL发送GET方法的请求

@@ -9,13 +9,11 @@ import android.os.Build;
 import android.util.Log;
 import android.view.Surface;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@Obfuscate
 public class AudioDecoder {
 
     public static final String MIMETYPE_AUDIO_AAC = "audio/mp4a-latm";

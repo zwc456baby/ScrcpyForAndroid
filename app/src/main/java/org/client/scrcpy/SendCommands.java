@@ -1,11 +1,10 @@
 package org.client.scrcpy;
 
 
-import static android.org.apache.commons.codec.binary.Base64.encodeBase64String;
-
 import android.content.Context;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.Base64;
 
 import com.tananaev.adblib.AdbBase64;
 import com.tananaev.adblib.AdbConnection;
@@ -13,7 +12,6 @@ import com.tananaev.adblib.AdbCrypto;
 import com.tananaev.adblib.AdbStream;
 
 import org.client.scrcpy.utils.ThreadUtils;
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,7 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 
-@Obfuscate
 public class SendCommands {
 
     private Context context;
@@ -40,7 +37,7 @@ public class SendCommands {
         return new AdbBase64() {
             @Override
             public String encodeToString(byte[] arg0) {
-                return encodeBase64String(arg0);
+                return Base64.encodeToString(arg0, Base64.NO_WRAP);
             }
         };
     }

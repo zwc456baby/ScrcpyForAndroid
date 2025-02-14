@@ -256,21 +256,6 @@
                 android:text="@string/action_start"
                 android:textColor="@color/white"
                 android:textSize="16sp" />
-
-            <org.client.scrcpy.MarkdownView
-                android:id="@+id/tips_tv"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="10dp"
-                android:layout_marginTop="5dp"
-                android:layout_marginRight="10dp"
-                android:layout_marginBottom="5dp"
-                android:background="#323540"
-                android:padding="10dp"
-                android:text="@string/connect_tips"
-                android:textColor="@color/white" />
-
-
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

@@ -10,7 +10,6 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.Log;
 
-import org.lsposed.lsparanoid.Obfuscate;
 import org.server.scrcpy.audio.AudioCapture;
 import org.server.scrcpy.audio.AudioCaptureException;
 import org.server.scrcpy.audio.AudioDirectCapture;
@@ -22,7 +21,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
-@Obfuscate
 public class AudioEncoder {
     public static final String MIMETYPE_AUDIO_AAC = "audio/mp4a-latm";
 

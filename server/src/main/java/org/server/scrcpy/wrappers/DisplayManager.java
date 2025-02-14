@@ -9,13 +9,11 @@ import org.server.scrcpy.DisplayInfo;
 import org.server.scrcpy.Ln;
 import org.server.scrcpy.Size;
 import org.server.scrcpy.util.Command;
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-@Obfuscate
 public final class DisplayManager {
     private final IInterface manager;
 

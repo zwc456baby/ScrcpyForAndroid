@@ -3,13 +3,11 @@ package org.client.scrcpy.utils;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 /**
  * Created by hasee on 2017/6/10.
  */
 @SuppressWarnings({"unused", "WeakerAccess"})
-@Obfuscate
 public class PreUtils {
     private static final String User = "default";
 

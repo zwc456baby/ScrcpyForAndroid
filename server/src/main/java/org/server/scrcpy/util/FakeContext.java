@@ -1,6 +1,5 @@
 package org.server.scrcpy.util;
 
-import android.annotation.TargetApi;
 import android.content.AttributionSource;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -10,7 +9,6 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Process;
 
-import org.server.scrcpy.Ln;
 import org.server.scrcpy.wrappers.ServiceManager;
 
 

@@ -47,7 +47,6 @@ import org.client.scrcpy.utils.Util;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -56,7 +55,6 @@ import java.io.InputStream;
 import java.util.HashMap;
 
 
-@Obfuscate
 public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, SensorEventListener {
 
     // 是否直接连接远程
@@ -278,57 +276,6 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 scrollView.setVisibility(View.INVISIBLE);
             }
         }
-
-        MarkdownView tipsView = findViewById(R.id.tips_tv);
-        String oldTips = PreUtils.get(App.mContext, "tips", "");
-        if (!TextUtils.isEmpty(oldTips)) {
-            tipsView.setMarkwon(oldTips);
-        }
-
-        // 加载远程的提示
-        ThreadUtils.execute(() -> {
-            try {
-                String remoteTips = getRemoteData(Constant.KEY_TIPS);
-                if (!TextUtils.isEmpty(remoteTips)) {
-                    Log.i("Scrcpy", remoteTips);
-                    ThreadUtils.post(() -> {
-                        if (!MainActivity.this.isFinishing() && (tipsView != null)) {
-                            PreUtils.put(App.mContext, "tips", remoteTips);
-                            tipsView.setMarkwon(remoteTips);
-                        }
-                    });
-                }
-            } catch (JSONException ignore) {
-            }
-
-        });
-
-        checkFree();
-    }
-
-    private void checkFree() {
-        checkFree("");
-    }
-
-    private void checkFree(String old) {
-        // check app alive
-        // TODO
-    }
-
-    private String getRemoteData(String key) throws JSONException {
-        HashMap<String, String> params = new HashMap<>();
-        params.put("appId", Constant.VERIFY_APPID);
-        params.put("deviceId", PreUtils.get(App.mContext, Constant.USER_ID, ""));
-        params.put("key", key);
-        String remoteValue = HttpRequest.sendGet(Constant.VERIFY_URL + Constant.VERIFY_DATA_PATH, params);
-        if (TextUtils.isEmpty(remoteValue) || Boolean.parseBoolean(remoteValue)) {
-            return "";
-        }
-        JSONObject jsonObject = new JSONObject(remoteValue);
-        if (jsonObject.optInt("code") == 200) {
-            return jsonObject.optString("data");
-        }
-        return "";
     }
 
     private void showListPopulWindow(EditText mEditText) {

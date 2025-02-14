@@ -1,8 +1,6 @@
 
 
 apply plugin: 'com.android.application'
-apply plugin: 'org.lsposed.lsparanoid'
-
 android {
     namespace 'org.server.scrcpy'
 
@@ -24,9 +22,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-
+            minifyEnabled false
         }
     }
 
@@ -56,12 +52,9 @@ android {
     }
 }
 
-
-
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
     testImplementation 'junit:junit:4.13.2'
 }
 
-apply from: "$project.rootDir/config/android-checkstyle.gradle"
+//apply from: "$project.rootDir/config/android-checkstyle.gradle"
 

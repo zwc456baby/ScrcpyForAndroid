@@ -4,11 +4,9 @@ import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.IInterface;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-@Obfuscate
 public final class PowerManager {
     private final IInterface manager;
     private final Method isScreenOnMethod;

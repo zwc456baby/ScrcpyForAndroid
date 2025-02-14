@@ -2,10 +2,8 @@ package org.server.scrcpy;
 
 import android.graphics.Point;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.util.Objects;
-@Obfuscate
 public class Position {
     private Point point;
     private Size screenSize;
