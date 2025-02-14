@@ -33,16 +33,26 @@ android {
     }
 
     task deleteServer(type: Delete){
-	delete "../app/src/main/assets/scrcpy-server.jar"
-   }
+        delete "../app/src/main/assets/scrcpy-server.jar"
+    }
 
-
+    tasks.whenTaskAdded { task ->
+        if (task.name == 'assembleRelease') {
+            task.finalizedBy(copyRelease)
+        }
+    }
+    
     task copyDebug (dependsOn: 'deleteServer', type: Copy){
         from file("build/outputs/apk/debug/server-debug.apk")
         into file("../app/src/main/assets/")
         rename('server-debug.apk', 'scrcpy-server.jar')
     }
 
+    tasks.whenTaskAdded { task ->
+        if (task.name == 'assembleDebug') {
+            task.finalizedBy(copyDebug)
+        }
+    }
     afterEvaluate {
         packageRelease.finalizedBy(copyRelease)
     }
