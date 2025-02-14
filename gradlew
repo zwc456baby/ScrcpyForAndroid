@@ -139,7 +139,7 @@ Please set the JAVA_HOME variable in your environment to match the
 location of your Java installation."
     fi
 fi
-java --version
+
 # Increase the maximum file descriptors if we can.
 if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
     case $MAX_FD in #(
@@ -246,5 +246,4 @@ eval "set -- $(
         tr '\n' ' '
     )" '"$@"'
 
-echo "$JAVACMD" "$@"
 exec "$JAVACMD" "$@"

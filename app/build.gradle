@@ -26,10 +26,24 @@ android {
             applicationId "org.client.scrcpy"
         }
     }
+
+    def gradleCommand = file('../gradlew').exists() ? '../gradlew' : 'gradle'
+
+    task buildServer(type: Exec) {
+        // Determine the build type from a project property or default to 'Debug'
+        def buildType = project.hasProperty('buildType') ? project.buildType : 'Debug'
+        def assembleTask = "assemble${buildType}"
+        commandLine gradleCommand, ":server:${assembleTask}"
+    }
+
+    tasks.whenTaskAdded { task ->
+        if (task.name == 'assembleDebug' || task.name == 'assembleRelease') {
+            task.dependsOn buildServer
+        }
+    }
 }
 
 dependencies {
-    implementation project(':server')
     implementation 'com.tananaev:adblib:1.3'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
