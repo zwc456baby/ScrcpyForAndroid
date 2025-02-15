@@ -9,3 +9,4 @@
 /captures
 .externalNativeBuild
 /.idea
+app/src/main/assets/scrcpy-server.jar

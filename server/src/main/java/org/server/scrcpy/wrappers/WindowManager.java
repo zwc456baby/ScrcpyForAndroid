@@ -3,9 +3,7 @@ package org.server.scrcpy.wrappers;
 import android.os.IInterface;
 import android.view.IRotationWatcher;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
-@Obfuscate
 public final class WindowManager {
     private final IInterface manager;
 

@@ -9,10 +9,8 @@ import android.view.Surface;
 
 import org.server.scrcpy.wrappers.ServiceManager;
 import org.server.scrcpy.wrappers.SurfaceControl;
-import org.lsposed.lsparanoid.Obfuscate;
 
 
-@Obfuscate
 public class ScreenCapture {
 
     private final Device device;

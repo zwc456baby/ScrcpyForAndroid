@@ -5,9 +5,7 @@ import android.graphics.Rect;
 import android.os.IBinder;
 import android.view.Surface;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
-@Obfuscate
 @SuppressLint("PrivateApi")
 public final class SurfaceControl {
 

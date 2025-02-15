@@ -1,28 +1,23 @@
 evaluationDependsOn(':server')
 
 apply plugin: 'com.android.application'
-apply plugin: 'org.lsposed.lsparanoid'
-
 
 android {
     namespace 'org.client.scrcpy'
-    // flavorDimensions "default"
     flavorDimensions = ["default"]
 
     compileSdkVersion 31
     defaultConfig {
-        applicationId "org.client.scrcpy"
         minSdkVersion 21
         targetSdkVersion 31
-        versionCode 7
-        versionName "1.0.3"
+        versionCode 8
+        versionName "1.0.4"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         setProperty("archivesBaseName", "scrcpy")
     }
     buildTypes {
         release {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            minifyEnabled false
         }
     }
 
@@ -30,31 +25,24 @@ android {
         scrcpy {
             applicationId "org.client.scrcpy"
         }
-        wxid {
-            applicationId "org.wxid.scrcpy"
-        }
+    }
+
+    def gradleCommand = file('../gradlew').exists() ? '../gradlew' : 'gradle'
+
+    task buildServer(type: Exec) {
+        def buildType = project.hasProperty('buildType') ? project.buildType : 'Debug'
+        def assembleTask = "assemble${buildType}"
+        commandLine gradleCommand, ":server:${assembleTask}"
+    }
+
+    tasks.whenTaskAdded { task ->
+        task.dependsOn buildServer
+        task.dependsOn ":server:copyServer"
     }
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-    // implementation 'com.android.support.constraint:constraint-layout:1.1.2'
-    implementation 'com.tananaev:adblib:1.3'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
-
-    // markdown 显示
-    implementation "io.noties.markwon:core:4.6.2"
-    implementation "io.noties.markwon:ext-latex:4.6.2"
-    implementation "io.noties.markwon:ext-strikethrough:4.6.2"
-    implementation "io.noties.markwon:ext-tables:4.6.2"
-    implementation "io.noties.markwon:ext-tasklist:4.6.2"
-    implementation "io.noties.markwon:html:4.6.2"
-    implementation "io.noties.markwon:image:4.6.2"
-    implementation "io.noties.markwon:inline-parser:4.6.2"
-    implementation "io.noties.markwon:linkify:4.6.2"
-    implementation "io.noties.markwon:simple-ext:4.6.2"
-
-    implementation("com.google.zxing:core:3.5.3")
 }

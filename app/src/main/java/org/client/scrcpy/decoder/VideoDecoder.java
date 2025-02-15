@@ -5,13 +5,11 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.view.Surface;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@Obfuscate
 public class VideoDecoder {
     private MediaCodec mCodec;
     private Worker mWorker;

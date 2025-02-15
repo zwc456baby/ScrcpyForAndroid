@@ -16,7 +16,6 @@ import org.client.scrcpy.model.ByteUtils;
 import org.client.scrcpy.model.MediaPacket;
 import org.client.scrcpy.model.VideoPacket;
 import org.client.scrcpy.utils.Util;
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -29,7 +28,6 @@ import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
-@Obfuscate
 public class Scrcpy extends Service {
 
     public static final String LOCAL_IP = "127.0.0.1";

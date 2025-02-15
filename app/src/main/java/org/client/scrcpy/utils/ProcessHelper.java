@@ -2,7 +2,6 @@ package org.client.scrcpy.utils;
 
 import android.os.Build;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * 执行命令，且命令会不断的在后台运行，直到调用 callback close
  */
-@Obfuscate
 public class ProcessHelper {
     protected volatile boolean isClose;
     // server

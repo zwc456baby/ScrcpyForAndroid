@@ -2,13 +2,11 @@ package org.server.scrcpy;
 
 import android.util.Log;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 /**
  * Log both to Android logger (so that logs are visible in "adb logcat") and standard output/error (so that they are visible in the terminal
  * directly).
  */
-@Obfuscate
 public final class Ln {
 
     private static final String TAG = "scrcpy";

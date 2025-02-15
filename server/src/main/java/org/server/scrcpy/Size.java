@@ -2,11 +2,9 @@ package org.server.scrcpy;
 
 import android.graphics.Rect;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.util.Objects;
 
-@Obfuscate
 public final class Size {
     private final int width;
     private final int height;

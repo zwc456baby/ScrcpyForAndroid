@@ -1,12 +1,10 @@
 package org.server.scrcpy.util;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Scanner;
 
-@Obfuscate
 public final class Command {
     private Command() {
         // not instantiable

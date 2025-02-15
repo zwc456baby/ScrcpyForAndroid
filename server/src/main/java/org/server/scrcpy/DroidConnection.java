@@ -1,6 +1,5 @@
 package org.server.scrcpy;
 
-import org.lsposed.lsparanoid.Obfuscate;
 
 import java.io.Closeable;
 import java.io.EOFException;
@@ -10,7 +9,6 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-@Obfuscate
 public final class DroidConnection implements Closeable {
 
 
