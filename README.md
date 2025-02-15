@@ -49,5 +49,8 @@
 
 - [2000:2000:2000:2000::2000]:5555
 
+## Code Reference
 
+- [scrcpy-android](https://gitlab.com/las2mile/scrcpy-android)
+- [scrcpy](https://github.com/Genymobile/scrcpy)
 
