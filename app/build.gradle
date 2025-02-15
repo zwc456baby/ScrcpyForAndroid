@@ -27,16 +27,11 @@ android {
         }
     }
 
-    def gradleCommand = file('../gradlew').exists() ? '../gradlew' : 'gradle'
-
-    task buildServer(type: Exec) {
-        def buildType = project.hasProperty('buildType') ? project.buildType : 'Debug'
-        def assembleTask = "assemble${buildType}"
-        commandLine gradleCommand, ":server:${assembleTask}"
-    }
 
     tasks.whenTaskAdded { task ->
-        task.dependsOn buildServer
+        def buildType = project.hasProperty('buildType') ? project.buildType : 'Debug'
+
+        task.dependsOn ":server:assemble${buildType}"
         task.dependsOn ":server:copyServer"
     }
 }
