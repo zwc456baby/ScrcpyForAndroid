@@ -22,6 +22,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -208,7 +209,13 @@ public class Scrcpy extends Service {
         while (attempts > 0) {
             try {
                 Log.e("Scrcpy", "Connecting to " + LOCAL_IP);
-                socket = new Socket(ip, port);
+                // socket = new Socket(ip, port);
+                socket = new Socket();
+                socket.connect(new InetSocketAddress(ip, port), 5000); //设置超时5000毫秒
+                if (!LetServceRunning.get()) {
+                    return;
+                }
+
                 Log.e("Scrcpy", "Connecting to " + LOCAL_IP + " success");
 
                 // 能够正常进行连接，说明可能建立了 tcp 连接，需要等待数据
