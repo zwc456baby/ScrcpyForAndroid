@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">ScrcpyForAndroid</string>
+  <string name="label_server_ip">リモートデバイス IP アドレス、例: 192.168.0.73</string>
+  <string name="label_video_resolution">解像度</string>
+  <string name="delay_control">遅延コントロール</string>
+  <string name="label_video_bitrate">ビットレート</string>
+  <string name="label_x">x</string>
+  <string name="action_start">開始</string>
+  <string name="appswitch_button">=</string>
+  <string name="home_button">o</string>
+  <string name="back_button">\u003C</string>
+  <string name="switch0">ビューイングモード (コントロールなし)</string>
+  <string name="switch1">下部のコントロールボタン (戻るボタン)</string>
+  <string name="connect_tips">ヒント: デバイスでワイヤレスデバッグを有効化する必要があります。\n\t\tadb ポートコマンドのリセット: adb tcpip 5555</string>
+  <string name="please_wait">接続中 …</string>
+  <string name="connect_faild">接続に失敗しました</string>
+  <string name="connect_faild_ask">接続を再試行しますか？</string>
+  <string name="disconnect">切断</string>
+  <string name="disconnect_ask">接続が切断されたことを検出しました。終了して再接続してください。</string>
+  <string name="need_register">登録が必要です</string>
+  <string-array name="options_resolution_values">
+    <item>1920x1080</item>
+    <item>1600x720</item>
+    <item>1280x720</item>
+    <item>1200x540</item>
+    <item>960x720</item>
+    <item>800x448</item>
+    <item>640x360</item>
+  </string-array>
+  <string-array name="options_delay_keys">
+    <item>高 (100 ミリ秒)</item>
+    <item>中 (60 ミリ秒)</item>
+    <item>低 (30 ミリ秒)</item>
+  </string-array>
+  <integer-array name="options_delay_values">
+    <item>100</item>
+    <item>60</item>
+    <item>30</item>
+  </integer-array>
+  <string-array name="options_bitrate_keys">
+    <item>6 Mbps</item>
+    <item>4 Mbps</item>
+    <item>2 Mbps</item>
+    <item>1 Mbps</item>
+  </string-array>
+  <integer-array name="options_bitrate_values">
+    <item>6144000</item>
+    <item>4096000</item>
+    <item>2048000</item>
+    <item>1024000</item>
+  </integer-array>
+</resources>
