@@ -1,6 +1,6 @@
 package org.server.scrcpy;
 
-import android.graphics.Point;
+import org.server.scrcpy.device.Point;
 
 
 import java.util.Objects;

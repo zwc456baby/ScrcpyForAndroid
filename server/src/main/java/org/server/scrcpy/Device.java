@@ -1,6 +1,6 @@
 package org.server.scrcpy;
 
-import android.graphics.Point;
+import org.server.scrcpy.device.Point;
 import android.os.Build;
 import android.os.RemoteException;
 import android.view.IRotationWatcher;
@@ -83,8 +83,8 @@ public final class Device {
         }
         Size deviceSize = screenInfo.getDeviceSize();
         Point point = position.getPoint();
-        int scaledX = point.x * deviceSize.getWidth() / videoSize.getWidth();
-        int scaledY = point.y * deviceSize.getHeight() / videoSize.getHeight();
+        int scaledX = point.getX() * deviceSize.getWidth() / videoSize.getWidth();
+        int scaledY = point.getY() * deviceSize.getHeight() / videoSize.getHeight();
         return new Point(scaledX, scaledY);
     }
 
@@ -112,8 +112,8 @@ public final class Device {
 
         Size deviceSize = screenInfo.getDeviceSize();
 //        Point point = position.getPoint();
-        int scaledX = point.x * deviceSize.getWidth() / videoSize.getWidth();
-        int scaledY = point.y * deviceSize.getHeight() / videoSize.getHeight();
+        int scaledX = point.getX() * deviceSize.getWidth() / videoSize.getWidth();
+        int scaledY = point.getY() * deviceSize.getHeight() / videoSize.getHeight();
         return new Point(scaledX, scaledY);
     }
 

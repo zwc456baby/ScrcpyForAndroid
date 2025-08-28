@@ -63,10 +63,16 @@ public final class DroidConnection implements Closeable {
     }
 
 
+    /**
+     * TODO 需要根据原版 scrcpy 进行改造消息传送，目前仅支持 触控消息
+     *
+     * @return
+     * @throws IOException
+     */
     public int[] NewreceiveControlEvent() throws IOException {
 
-        byte[] buf = new byte[16];
-        int n = inputStream.read(buf, 0, 16);
+        byte[] buf = new byte[20];
+        int n = inputStream.read(buf, 0, 20);
         if (n == -1) {
             throw new EOFException("Event controller socket closed");
         }

@@ -28,7 +28,8 @@ public final class InputManager {
         try {
             return (Boolean) injectInputEventMethod.invoke(manager, inputEvent, mode);
         } catch (InvocationTargetException | IllegalAccessException e) {
-            throw new AssertionError(e);
+            // throw new AssertionError(e);
+            return false;
         }
     }
 }

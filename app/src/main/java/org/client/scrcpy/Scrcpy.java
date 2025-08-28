@@ -152,8 +152,39 @@ public class Scrcpy extends Service {
             realW = realH * remoteW / remoteH;
         }
 
+        int actionIndex = touch_event.getActionIndex();
+        int pointerId = touch_event.getPointerId(actionIndex);
+        int pointCount = touch_event.getPointerCount();
+        // Log.e("Scrcpy", "pointer id: " + pointerId + " , action: " + touch_event.getAction() + " ,point count: " + pointCount + " x: " + touch_event.getX() + " y: " + touch_event.getY());
 
-        int[] buf = new int[]{touch_event.getAction(), touch_event.getButtonState(), (int) (touch_event.getX() * realW / displayW), (int) (touch_event.getY() * realH / displayH)};
+        switch (touch_event.getAction()) {
+            case MotionEvent.ACTION_MOVE: // 所有手指移动
+                // 遍历所有触摸点，使用 pointerId 和 pointerIndex 来获取所有触摸点的信息
+                for (int i = 0; i < touch_event.getPointerCount(); i++) {
+                    int currentPointerId = touch_event.getPointerId(i);
+                    int x = (int) touch_event.getX(i);
+                    int y = (int) touch_event.getY(i);
+                    // 处理每一个触摸点的x, y坐标
+                    // Log.e("Scrcpy", "触摸移动，index : " + i + " ,x : " + x + " , y: " + y + " ,currentPointerId: " + currentPointerId);
+                    sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(), (int) (x * realW / displayW), (int) (y * realH / displayH), currentPointerId);
+                }
+                break;
+            case MotionEvent.ACTION_POINTER_UP: // 中间手指抬起
+            case MotionEvent.ACTION_UP: // 最后一个手指抬起
+            case MotionEvent.ACTION_DOWN: // 第一个手指按下
+            case MotionEvent.ACTION_POINTER_DOWN: // 中间的手指按下
+            default:
+                sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(), (int) (touch_event.getX() * realW / displayW), (int) (touch_event.getY() * realH / displayH), pointerId);
+                break;
+
+        }
+        return true;
+    }
+
+    private void sendTouchEvent(int action, int buttonState, int x, int y, int pointerId){
+        // 为支持多点触控，将 pointid 添加到最末尾
+        // TODO : 后续需要改造 event 传输方式
+        int[] buf = new int[]{action, buttonState, x, y, pointerId};
         final byte[] array = new byte[buf.length * 4]; // https://stackoverflow.com/questions/2183240/java-integer-to-byte-array
         for (int j = 0; j < buf.length; j++) {
             final int c = buf[j];
@@ -166,7 +197,6 @@ public class Scrcpy extends Service {
             event.offer(array);
         }
         // event = array;
-        return true;
     }
 
     public int[] get_remote_device_resolution() {
