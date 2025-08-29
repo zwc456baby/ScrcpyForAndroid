@@ -26,30 +26,34 @@ android {
         }
     }
 
-    task copyServer(dependsOn: 'deleteServer', type: Copy) {
-        def release_file='build/outputs/apk/release/server-release-unsigned.apk'
-        def debug_file='build/outputs/apk/debug/server-debug.apk'
-        def debug_file2='build/intermediates/apk/debug/server-debug.apk'
-        def file_dest='../app/src/main/assets/'
+    tasks.register('copyServer', Copy) {
         def buildType = project.hasProperty('buildType') ? project.buildType : 'Debug'
-        if(buildType == "Debug"){
-            if(new File(debug_file).exists()){
+        dependsOn 'deleteServer'
+        dependsOn("assemble${buildType}")
+
+        def release_file = 'build/outputs/apk/release/server-release-unsigned.apk'
+        def debug_file = 'build/outputs/apk/debug/server-debug.apk'
+        def debug_file2 = 'build/intermediates/apk/debug/server-debug.apk'
+        def file_dest = '../app/src/main/assets/'
+
+        if (buildType == "Debug") {
+            if (file(debug_file).exists()) {
                 from file(debug_file)
                 into file(file_dest)
             } else {  // fix android studio run
                 from file(debug_file2)
                 into file(file_dest)
             }
-        }else{
+        } else {
             from file(release_file)
             into file(file_dest)
         }
-        rename { fileName -> 
-            'scrcpy-server.jar' 
+        rename { fileName ->
+            'scrcpy-server.jar'
         }
 
     }
-    task deleteServer(type: Delete){
+    tasks.register('deleteServer', Delete) {
         delete "../app/src/main/assets/scrcpy-server.jar"
     }
 
