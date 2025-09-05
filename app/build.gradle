@@ -20,8 +20,10 @@ android {
             storeFile file("scrcpy.jks")
 
             def properties = new Properties()
-            file("../local.properties").withInputStream { stream ->
-                properties.load(stream)
+            if (file("../local.properties").exists()){
+                file("../local.properties").withInputStream { stream ->
+                    properties.load(stream)
+                }
             }
 
             storePassword System.getenv("SIGNING_STORE_PASSWORD") ?: properties.getProperty("SIGNING_STORE_PASSWORD")
