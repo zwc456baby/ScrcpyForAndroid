@@ -27,7 +27,7 @@ android {
     }
 
     tasks.register('copyServer', Copy) {
-        def buildType = project.hasProperty('buildType') ? project.buildType : 'Debug'
+        def buildType = gradle.startParameter.taskNames.any { it.endsWith('Release') } ? 'Release' : 'Debug'
         dependsOn 'deleteServer'
         dependsOn("assemble${buildType}")
 
@@ -57,15 +57,15 @@ android {
         delete "../app/src/main/assets/scrcpy-server.jar"
     }
 
-    tasks.whenTaskAdded { task ->
-        task.finalizedBy(copyServer)
-    }
-    afterEvaluate {
-        packageRelease.finalizedBy(copyServer)
-    }
-    afterEvaluate {
-        packageDebug.finalizedBy(copyServer)
-    }
+//    tasks.whenTaskAdded { task ->
+//        task.finalizedBy(copyServer)
+//    }
+//    afterEvaluate {
+//        packageRelease.finalizedBy(copyServer)
+//    }
+//    afterEvaluate {
+//        packageDebug.finalizedBy(copyServer)
+//    }
 }
 
 dependencies {

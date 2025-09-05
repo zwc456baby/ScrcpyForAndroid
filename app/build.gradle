@@ -47,7 +47,7 @@ android {
 
 
     tasks.whenTaskAdded { task ->
-        def buildType = project.hasProperty('buildType') ? project.buildType : 'Debug'
+        def buildType = gradle.startParameter.taskNames.any { it.endsWith('Release') } ? 'Release' : 'Debug'
 
         task.dependsOn ":server:assemble${buildType}"
         task.dependsOn ":server:copyServer"
