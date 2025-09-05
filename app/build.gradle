@@ -15,9 +15,25 @@ android {
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         setProperty("archivesBaseName", "scrcpy")
     }
+    signingConfigs {
+        release {
+            storeFile file("scrcpy.jks")
+
+            def properties = new Properties()
+            file("../local.properties").withInputStream { stream ->
+                properties.load(stream)
+            }
+
+            storePassword System.getenv("SIGNING_STORE_PASSWORD") ?: properties.getProperty("SIGNING_STORE_PASSWORD")
+            keyAlias System.getenv("SIGNING_KEY_ALIAS") ?: properties.getProperty("SIGNING_KEY_ALIAS")
+            keyPassword System.getenv("SIGNING_KEY_PASSWORD") ?: properties.getProperty("SIGNING_KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.release
         }
     }
 
