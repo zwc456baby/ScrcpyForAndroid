@@ -33,17 +33,11 @@ android {
 
         def release_file = 'build/outputs/apk/release/server-release-unsigned.apk'
         def debug_file = 'build/outputs/apk/debug/server-debug.apk'
-        def debug_file2 = 'build/intermediates/apk/debug/server-debug.apk'
         def file_dest = '../app/src/main/assets/'
 
         if (buildType == "Debug") {
-            if (file(debug_file).exists()) {
-                from file(debug_file)
-                into file(file_dest)
-            } else {  // fix android studio run
-                from file(debug_file2)
-                into file(file_dest)
-            }
+            from file(debug_file)
+            into file(file_dest)
         } else {
             from file(release_file)
             into file(file_dest)
