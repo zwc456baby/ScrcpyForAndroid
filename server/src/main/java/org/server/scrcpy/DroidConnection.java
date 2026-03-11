@@ -4,6 +4,7 @@ package org.server.scrcpy;
 import android.util.Log;
 
 import org.server.scrcpy.model.ByteUtils;
+import org.server.scrcpy.model.CommandPacket;
 import org.server.scrcpy.model.ControlPacket;
 import org.server.scrcpy.model.MediaPacket;
 
@@ -71,7 +72,6 @@ public final class DroidConnection implements Closeable {
 
 
     /**
-     * TODO 需要根据原版 scrcpy 进行改造消息传送，目前仅支持 触控消息
      *
      * @return
      * @throws IOException
@@ -94,8 +94,7 @@ public final class DroidConnection implements Closeable {
             case CONTROL:
                 return new ControlPacket().fromArray(packet);
             case COMMAND:
-                // TODO 实现额外的命令或方法
-                break;
+                return new CommandPacket().fromArray(packet);
         }
 
 

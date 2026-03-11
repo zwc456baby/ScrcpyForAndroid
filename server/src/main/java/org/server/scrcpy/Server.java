@@ -20,7 +20,7 @@ public final class Server {
             ScreenEncoder screenEncoder = new ScreenEncoder(options.getBitRate());
 
             // asynchronous
-            startEventController(device, connection);
+            startEventController(device, connection, screenEncoder);
 
             try {
                 // synchronous
@@ -34,12 +34,12 @@ public final class Server {
         }
     }
 
-    private static void startEventController(final Device device, final DroidConnection connection) {
+    private static void startEventController(final Device device, final DroidConnection connection, ScreenEncoder screenEncoder) {
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    new EventController(device, connection).control();
+                    new EventController(device, connection, screenEncoder).control();
                 } catch (IOException e) {
                     // this is expected on close
                     Ln.d("Event controller stopped");

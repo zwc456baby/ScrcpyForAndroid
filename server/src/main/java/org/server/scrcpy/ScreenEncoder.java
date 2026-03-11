@@ -6,6 +6,7 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.Surface;
@@ -32,6 +33,8 @@ public class ScreenEncoder implements Device.RotationListener {
     private static final int MICROSECONDS_IN_ONE_SECOND = 1_000_000;
 
     private final AtomicBoolean rotationChanged = new AtomicBoolean();
+
+    private final AtomicBoolean requestKeyFrame = new AtomicBoolean(false);
 
     private int bitRate;
     private int frameRate;
@@ -103,6 +106,10 @@ public class ScreenEncoder implements Device.RotationListener {
 
     public boolean consumeRotationChange() {
         return rotationChanged.getAndSet(false);
+    }
+
+    public void asyncRequestKeyFrame() {
+        requestKeyFrame.set(true);
     }
 
     /**
@@ -228,6 +235,12 @@ public class ScreenEncoder implements Device.RotationListener {
                 if (consumeRotationChange()) {
                     // must restart encoding with new size
                     break;
+                }
+                if (requestKeyFrame.getAndSet(false)) {
+                    Bundle b = new Bundle();
+                    b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
+                    codec.setParameters(b);
+                    Log.i("Scrcpy", "request new key frame");
                 }
                 if (outputBufferId >= 0) {
                     ByteBuffer outputBuffer;

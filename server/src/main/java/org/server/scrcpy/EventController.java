@@ -1,6 +1,10 @@
 package org.server.scrcpy;
 
+import static org.server.scrcpy.model.CommandPacket.CmdType.VIDEO_NEW_KEY_FRAME;
+
+import android.media.MediaCodec;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.Log;
 import android.util.Pair;
@@ -10,6 +14,7 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 
+import org.server.scrcpy.model.CommandPacket;
 import org.server.scrcpy.model.ControlPacket;
 import org.server.scrcpy.model.MediaPacket;
 import org.server.scrcpy.wrappers.InputManager;
@@ -18,12 +23,16 @@ import org.server.scrcpy.control.Pointer;
 import org.server.scrcpy.device.Point;
 
 import java.io.IOException;
+import java.util.Objects;
 
 
 public class EventController {
 
     private final Device device;
     private final DroidConnection connection;
+
+    private final ScreenEncoder screenEncoder;
+
     private final MotionEvent.PointerProperties[] pointerProperties = new MotionEvent.PointerProperties[PointersState.MAX_POINTERS];
     private final MotionEvent.PointerCoords[] pointerCoords = new MotionEvent.PointerCoords[PointersState.MAX_POINTERS];
     private long lastMouseDown;
@@ -34,9 +43,10 @@ public class EventController {
     private boolean hit = false;
     private boolean proximity = false;
 
-    public EventController(Device device, DroidConnection connection) {
+    public EventController(Device device, DroidConnection connection, ScreenEncoder screenEncoder) {
         this.device = device;
         this.connection = connection;
+        this.screenEncoder = screenEncoder;
         initPointers();
     }
 
@@ -126,6 +136,17 @@ public class EventController {
         }
     }
 
+    private void extraCommand(CommandPacket commandPacket) {
+        Log.i("Scrcpy", "command type: " + commandPacket.cmdType);
+        CommandPacket.CmdType.getFlag(commandPacket.cmdType);
+
+        switch (Objects.requireNonNull(CommandPacket.CmdType.getFlag(commandPacket.cmdType))) {
+            case VIDEO_NEW_KEY_FRAME:
+                screenEncoder.asyncRequestKeyFrame();
+                break;
+        }
+    }
+
     public void control() throws IOException {
         // on start, turn screen on
         turnScreenOn();
@@ -133,14 +154,19 @@ public class EventController {
         while (true) {
             //           handleEvent();
             MediaPacket mediaPacket = connection.NewReceiveEvent();
-            if (mediaPacket != null) {
-                switch (mediaPacket.type) {
-                    case CONTROL:
-                        injectControlEvenv(((ControlPacket) mediaPacket).data);
-                    case COMMAND:
-                        // TODO 实现额外的命令或方法
-                        break;
+            try {
+                if (mediaPacket != null) {
+                    switch (mediaPacket.type) {
+                        case CONTROL:
+                            injectControlEvenv(((ControlPacket) mediaPacket).data);
+                            break;
+                        case COMMAND:
+                            extraCommand((CommandPacket) mediaPacket);
+                            break;
+                    }
                 }
+            } catch (Exception e) {
+                Log.e("Scrcpy", "error : " + e);
             }
         }
     }
