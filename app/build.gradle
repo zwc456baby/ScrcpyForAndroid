@@ -20,7 +20,7 @@ android {
             storeFile file("scrcpy.jks")
 
             def properties = new Properties()
-            if (file("../local.properties").exists()){
+            if (file("../local.properties").exists()) {
                 file("../local.properties").withInputStream { stream ->
                     properties.load(stream)
                 }
@@ -35,7 +35,9 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.release
+            if (file("scrcpy.jks").exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

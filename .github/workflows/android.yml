@@ -21,6 +21,7 @@ jobs:
         cache: gradle
 
     - name: Decode Keystore
+      if: ${{ secrets.SIGNING_KEY != '' }}
       env:
         ENCODED_STRING: ${{ secrets.SIGNING_KEY }}  # Uses the encoded signing key stored in GitHub Secrets.
       run: |
