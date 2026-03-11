@@ -13,6 +13,58 @@ import java.util.Map;
 
 public class ExecUtil {
 
+    public static String execCommend(String cmd) {
+        Process process = null;
+        DataOutputStream os = null;
+        BufferedReader successResult = null;
+        BufferedReader errorResult = null;
+        try {
+            process = Runtime.getRuntime().exec("sh");
+            os = new DataOutputStream(process.getOutputStream());
+            os.write(cmd.getBytes());
+            os.writeBytes("\n");
+            os.flush();
+            os.writeBytes("exit\n");
+            os.flush();
+            int result = process.waitFor();
+            // get command result
+            StringBuilder successMsg = new StringBuilder();
+            StringBuilder errorMsg = new StringBuilder();
+            successResult = new BufferedReader(new InputStreamReader(
+                    process.getInputStream()));
+            errorResult = new BufferedReader(new InputStreamReader(
+                    process.getErrorStream()));
+            String s;
+            while ((s = successResult.readLine()) != null) {
+                successMsg.append(s);
+            }
+            while ((s = errorResult.readLine()) != null) {
+                errorMsg.append(s);
+            }
+            return successMsg.toString();
+        } catch (Exception e) {
+            Log.i("TaskPrint", e.toString());
+        } finally {
+            try {
+                if (os != null) {
+                    os.close();
+                }
+                if (successResult != null) {
+                    successResult.close();
+                }
+                if (errorResult != null) {
+                    errorResult.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if (process != null) {
+                process.destroy();
+            }
+        }
+        return "";
+    }
+
     public static String execCommend(String cmd, String[] env, File workDir) {
         Process process = null;
         DataOutputStream os = null;

@@ -236,7 +236,7 @@ public class Scrcpy extends Service {
         Socket socket = null;
         boolean firstConnect = true;
         int attempts = 50;
-        while (attempts > 0) {
+        while (attempts > 0 && LetServceRunning.get()) {
             try {
                 Log.e("Scrcpy", "Connecting to " + LOCAL_IP);
                 // socket = new Socket(ip, port);

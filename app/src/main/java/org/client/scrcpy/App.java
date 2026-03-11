@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 
+import org.client.scrcpy.utils.AdbHelper;
 import org.client.scrcpy.utils.ExecUtil;
 import org.client.scrcpy.utils.PreUtils;
 import org.client.scrcpy.utils.ThreadUtils;
@@ -23,13 +24,11 @@ public class App extends Application implements Application.ActivityLifecycleCal
 
     private final static LinkedList<Activity> activityList = new LinkedList<Activity>();
 
-    private static boolean startAdbRun = false;
-
     @Override
     public void onCreate() {
         super.onCreate();
         init();  // 初始化id 数据
-        startAdbServer();
+        AdbHelper.startAdbServer();
     }
 
     @Override
@@ -53,42 +52,6 @@ public class App extends Application implements Application.ActivityLifecycleCal
         } catch (Exception ignore) {
             return null;
         }
-    }
-
-    /**
-     * 启动 adb 服务
-     */
-    public static void startAdbServer() {
-        if (startAdbRun) {
-            // 当前正在启动过程中，退出
-            return;
-        }
-        startAdbRun = true;
-        ThreadUtils.execute(() -> {
-            // 启动 adb 服务
-            Log.i("Scrcpy", "start adb server ...");
-            adbCmd("kill-server");
-            adbCmd("start-server");
-            // 启动完毕，重置为false，使其下次可以被重新调用
-            startAdbRun = false;
-        });
-    }
-
-
-    public static String adbCmd(String... cmd) {
-        if (cmd == null) {
-            return "";
-        }
-        String[] cmds = new String[cmd.length + 1];
-        cmds[0] = mContext.getApplicationInfo().nativeLibraryDir + "/libadb.so";
-        System.arraycopy(cmd, 0, cmds, 1, cmd.length);
-
-        HashMap<String, String> env = new HashMap<>();
-        env.put("HOME", mContext.getFilesDir().getAbsolutePath());
-        env.put("TMPDIR", mContext.getCacheDir().getAbsolutePath());
-        env.put("ANDROID_ADB_SERVER_PORT", "5137");
-
-        return ExecUtil.adbCommend(cmds, env, mContext.getFilesDir());
     }
 
     @Override
