@@ -73,7 +73,7 @@ public class AdbHelper {
 
     /**
      * Check if the ADB service is running properly.
-     *
+     * If the process becomes unresponsive, it will block and time out.
      */
     public static boolean checkAdbServer() {
         return executeWithTimeout(() -> {

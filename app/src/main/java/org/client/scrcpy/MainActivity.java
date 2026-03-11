@@ -54,6 +54,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.concurrent.TimeUnit;
 
 
 public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, SensorEventListener {
@@ -98,19 +99,18 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 scrcpy.start(surface, Scrcpy.LOCAL_IP + ":" + Scrcpy.LOCAL_FORWART_PORT,
                         screenHeight, screenWidth, delayControl);
                 ThreadUtils.workPost(() -> {
-                    int count = 50;
-                    while (count > 0 && !scrcpy.check_socket_connection()) {
-                        count--;
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                    boolean success = AdbHelper.executeWithTimeout(() -> {
+                        while (!scrcpy.check_socket_connection()) {
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                break;
+                            }
                         }
-                    }
-                    int finalCount = count;
+                    }, 5, TimeUnit.SECONDS);
                     ThreadUtils.post(() -> {
                         Progress.closeDialog();
-                        if (finalCount == 0) {
+                        if (!success) {
                             if (serviceBound) {
                                 showMainView();
                             }
@@ -802,8 +802,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
      */
     protected void connectExitExt(boolean userDisconnect) {
         if (!userDisconnect) {  // userDisconnect : 用户主动断开连接
-            // 错误 3 次，则重启 adb 服务
-            // AdbHelper.restartAdb();
+            // 如果自动断开了端口连接，在系统恢复时，重启adb，避免
+            AdbHelper.restartAdb();
         }
         if (headlessMode && !resumeScrcpy && !result_of_Rotation) {
             if (!userDisconnect) {

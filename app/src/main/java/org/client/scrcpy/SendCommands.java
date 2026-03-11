@@ -44,20 +44,16 @@ public class SendCommands {
         };
         ThreadUtils.execute(() -> {
             try {
-                if (AdbHelper.isRunning()) {
-                    boolean serverIsRunning = AdbHelper.checkAdbServer();
-                    Log.i("Scrcpy", "serverIsRunning: " + serverIsRunning);
-                    if (!serverIsRunning) {
-                        AdbHelper.restartAdb();
-                        AdbHelper.waitForRunning(5);
-                    }
-                    CmdStatus curStatus = startPortForward(context, ip, port, forwardport);
-                    status.set(curStatus);
-                    if(curStatus == CmdStatus.SUCCESS){
-                        newAdbServerStart(commands);
-                    }
-                } else {
-                    status.set(CmdStatus.ERROR);
+                boolean serverIsRunning = AdbHelper.checkAdbServer();
+                Log.i("Scrcpy", "serverIsRunning: " + serverIsRunning);
+                if (!serverIsRunning || !AdbHelper.isRunning()){
+                    AdbHelper.restartAdb();
+                    AdbHelper.waitForRunning(5);
+                }
+                CmdStatus curStatus = startPortForward(context, ip, port, forwardport);
+                status.set(curStatus);
+                if (curStatus == CmdStatus.SUCCESS) {
+                    newAdbServerStart(commands);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
