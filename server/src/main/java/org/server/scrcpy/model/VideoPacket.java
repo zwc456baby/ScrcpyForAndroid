@@ -4,9 +4,10 @@ import java.nio.ByteBuffer;
 
 /**
  * Created by Alexandr Golovach on 27.06.16.
+ * https://www.github.com/alexmprog/VideoCodec
  */
 
-public class VideoPacket extends MediaPacket {
+public class VideoPacket extends MediaPacket<VideoPacket> {
 
     public Flag flag;
     public long presentationTimeStamp;
@@ -23,7 +24,7 @@ public class VideoPacket extends MediaPacket {
     }
 
     // create packet from byte array
-    public static VideoPacket fromArray(byte[] values) {
+    public VideoPacket fromArray(byte[] values) {
         VideoPacket videoPacket = new VideoPacket();
 
         // should be a type value - 1 byte
@@ -46,6 +47,31 @@ public class VideoPacket extends MediaPacket {
         videoPacket.data = data;
 
         return videoPacket;
+    }
+
+    public static VideoPacket readHead(byte[] values) {
+        VideoPacket videoPacket = new VideoPacket();
+
+        // should be a type value - 1 byte
+        byte typeValue = values[0];
+        // should be a flag value - 1 byte
+        byte flagValue = values[1];
+
+        videoPacket.type = Type.getType(typeValue);
+        videoPacket.flag = Flag.getFlag(flagValue);
+
+        // should be 8 bytes for timestamp
+        byte[] timeStamp = new byte[8];
+        System.arraycopy(values, 2, timeStamp, 0, 8);
+        videoPacket.presentationTimeStamp = ByteUtils.bytesToLong(timeStamp);
+
+        videoPacket.data = null;
+
+        return videoPacket;
+    }
+
+    public int headLength(){
+        return 10;
     }
 
     // create byte array

@@ -2,15 +2,18 @@ package org.client.scrcpy.model;
 
 /**
  * Created by Alexandr Golovach on 27.06.16.
- * https://www.github.com/alexmprog/VideoCodec
  */
-public class MediaPacket {
+public abstract class MediaPacket<T> {
 
     public Type type;
 
+    abstract int headLength();
+
+    abstract public T fromArray(byte[] array);
+
     public enum Type {
 
-        VIDEO((byte) 1), AUDIO((byte) 0);
+        VIDEO((byte) 1), AUDIO((byte) 0), CONTROL((byte) 2), COMMAND((byte) 3);
 
         private byte type;
 

@@ -102,12 +102,12 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                     boolean success = AdbHelper.executeWithTimeout(() -> {
                         while (!scrcpy.check_socket_connection()) {
                             try {
-                                Thread.sleep(100);
+                                Thread.sleep(10);
                             } catch (InterruptedException e) {
                                 break;
                             }
                         }
-                    }, 5, TimeUnit.SECONDS);
+                    }, SendCommands.WAIT_TIME, TimeUnit.MILLISECONDS);
                     ThreadUtils.post(() -> {
                         Progress.closeDialog();
                         if (!success) {

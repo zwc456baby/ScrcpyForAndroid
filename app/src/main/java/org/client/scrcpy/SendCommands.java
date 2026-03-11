@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class SendCommands {
 
-    private final static int WAIT_TIME = 20000;
+    public final static int WAIT_TIME = 5000;
 
     public enum CmdStatus {
         SUCCESS,

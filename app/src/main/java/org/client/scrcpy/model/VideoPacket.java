@@ -7,7 +7,7 @@ import java.nio.ByteBuffer;
  * https://www.github.com/alexmprog/VideoCodec
  */
 
-public class VideoPacket extends MediaPacket {
+public class VideoPacket extends MediaPacket<VideoPacket> {
 
     public Flag flag;
     public long presentationTimeStamp;
@@ -24,7 +24,7 @@ public class VideoPacket extends MediaPacket {
     }
 
     // create packet from byte array
-    public static VideoPacket fromArray(byte[] values) {
+    public VideoPacket fromArray(byte[] values) {
         VideoPacket videoPacket = new VideoPacket();
 
         // should be a type value - 1 byte
@@ -70,7 +70,7 @@ public class VideoPacket extends MediaPacket {
         return videoPacket;
     }
 
-    public static int getHeadLen(){
+    public int headLength(){
         return 10;
     }
 

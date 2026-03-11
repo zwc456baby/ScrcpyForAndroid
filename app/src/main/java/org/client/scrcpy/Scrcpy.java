@@ -13,6 +13,7 @@ import org.client.scrcpy.decoder.AudioDecoder;
 import org.client.scrcpy.decoder.VideoDecoder;
 import org.client.scrcpy.model.AudioPacket;
 import org.client.scrcpy.model.ByteUtils;
+import org.client.scrcpy.model.ControlPacket;
 import org.client.scrcpy.model.MediaPacket;
 import org.client.scrcpy.model.VideoPacket;
 import org.client.scrcpy.utils.Util;
@@ -181,7 +182,7 @@ public class Scrcpy extends Service {
         return true;
     }
 
-    private void sendTouchEvent(int action, int buttonState, int x, int y, int pointerId){
+    private void sendTouchEvent(int action, int buttonState, int x, int y, int pointerId) {
         // 为支持多点触控，将 pointid 添加到最末尾
         // TODO : 后续需要改造 event 传输方式
         int[] buf = new int[]{action, buttonState, x, y, pointerId};
@@ -356,7 +357,8 @@ public class Scrcpy extends Service {
                 if (sendevent != null) {
                     waitEvent = false;
                     try {
-                        dataOutputStream.write(sendevent, 0, sendevent.length);
+                        byte[] data = ControlPacket.toArray(MediaPacket.Type.CONTROL, sendevent);
+                        dataOutputStream.write(data);
                     } catch (IOException e) {
                         e.printStackTrace();
                         if (serviceCallbacks != null) {
@@ -386,9 +388,9 @@ public class Scrcpy extends Service {
                         // byte[] data = videoPacket.data;
                         if (videoPacket.flag == VideoPacket.Flag.CONFIG || updateAvailable.get()) {
                             if (!updateAvailable.get()) {
-                                int dataLength = packet.length - VideoPacket.getHeadLen();
+                                int dataLength = packet.length - videoPacket.headLength();
                                 byte[] data = new byte[dataLength];
-                                System.arraycopy(packet, VideoPacket.getHeadLen(), data, 0, dataLength);
+                                System.arraycopy(packet, videoPacket.headLength(), data, 0, dataLength);
                                 streamSettings = VideoPacket.getStreamSettings(data);
                                 if (!first_time) {
                                     if (serviceCallbacks != null) {
@@ -419,12 +421,12 @@ public class Scrcpy extends Service {
                                 lastVideoOffset = System.currentTimeMillis() - (videoPacket.presentationTimeStamp / 1000);
                             }
                             if (videoPacket.flag == VideoPacket.Flag.KEY_FRAME) {
-                                videoDecoder.decodeSample(packet, VideoPacket.getHeadLen(), packet.length - VideoPacket.getHeadLen(),
+                                videoDecoder.decodeSample(packet, videoPacket.headLength(), packet.length - videoPacket.headLength(),
                                         0, videoPacket.flag.getFlag());
                             } else {
                                 if (System.currentTimeMillis() - (lastVideoOffset + (videoPacket.presentationTimeStamp / 1000)) < delay) {
                                     videoPassCount = 0;
-                                    videoDecoder.decodeSample(packet, VideoPacket.getHeadLen(), packet.length - VideoPacket.getHeadLen(),
+                                    videoDecoder.decodeSample(packet, videoPacket.headLength(), packet.length - videoPacket.headLength(),
                                             0, videoPacket.flag.getFlag());
                                 } else {
                                     videoPassCount++;
@@ -436,9 +438,9 @@ public class Scrcpy extends Service {
                         AudioPacket audioPacket = AudioPacket.readHead(packet);
                         // byte[] data = audioPacket.data;
                         if (audioPacket.flag == AudioPacket.Flag.CONFIG) {
-                            int dataLength = packet.length - AudioPacket.getHeadLen();
+                            int dataLength = packet.length - audioPacket.headLength();
                             byte[] data = new byte[dataLength];
-                            System.arraycopy(packet, AudioPacket.getHeadLen(), data, 0, dataLength);
+                            System.arraycopy(packet, audioPacket.headLength(), data, 0, dataLength);
                             audioDecoder.configure(data);
                         } else if (audioPacket.flag == AudioPacket.Flag.END) {
                             // need close stream
@@ -449,7 +451,7 @@ public class Scrcpy extends Service {
                             }
                             if (System.currentTimeMillis() - (lastAudioOffset + (audioPacket.presentationTimeStamp / 1000)) < delay) {
                                 audioPassCount = 0;
-                                audioDecoder.decodeSample(packet, VideoPacket.getHeadLen(), packet.length - AudioPacket.getHeadLen(),
+                                audioDecoder.decodeSample(packet, audioPacket.headLength(), packet.length - audioPacket.headLength(),
                                         0, audioPacket.flag.getFlag());
                             } else {
                                 audioPassCount++;
