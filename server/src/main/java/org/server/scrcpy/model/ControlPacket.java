@@ -1,9 +1,5 @@
 package org.server.scrcpy.model;
 
-/**
- * Created by Alexandr Golovach on 27.06.16.
- * https://www.github.com/alexmprog/VideoCodec
- */
 
 public class ControlPacket extends MediaPacket<ControlPacket> {
 

@@ -1,11 +1,5 @@
 package org.client.scrcpy.model;
 
-import java.nio.ByteBuffer;
-
-/**
- * Created by Alexandr Golovach on 27.06.16.
- * https://www.github.com/alexmprog/VideoCodec
- */
 
 public class ControlPacket extends MediaPacket<ControlPacket> {
 

@@ -1,10 +1,5 @@
 package org.client.scrcpy.model;
 
-/**
- * Created by Alexandr Golovach on 27.06.16.
- * https://www.github.com/alexmprog/VideoCodec
- */
-
 public class CommandPacket extends MediaPacket<CommandPacket> {
 
     private final static int headLen = 2;  //1 type and 4 cmd type

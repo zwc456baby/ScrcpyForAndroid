@@ -137,8 +137,6 @@ public class EventController {
     }
 
     private void extraCommand(CommandPacket commandPacket) {
-        Log.i("Scrcpy", "command type: " + commandPacket.cmdType);
-        CommandPacket.CmdType.getFlag(commandPacket.cmdType);
 
         switch (Objects.requireNonNull(CommandPacket.CmdType.getFlag(commandPacket.cmdType))) {
             case VIDEO_NEW_KEY_FRAME:
