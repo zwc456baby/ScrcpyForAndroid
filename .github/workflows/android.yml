@@ -21,11 +21,15 @@ jobs:
         cache: gradle
 
     - name: Decode Keystore
-      if: ${{ secrets.SIGNING_KEY != '' }}
       env:
         ENCODED_STRING: ${{ secrets.SIGNING_KEY }}  # Uses the encoded signing key stored in GitHub Secrets.
       run: |
-        echo $ENCODED_STRING | base64 -di > app/scrcpy.jks
+        if [ -n "$ENCODED_STRING" ]; then
+          echo $ENCODED_STRING | base64 -di > app/scrcpy.jks
+          echo "Keystore decoded successfully."
+        else
+          echo "No signing key found, skipping..."
+        fi
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
