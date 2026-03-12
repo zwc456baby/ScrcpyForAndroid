@@ -83,17 +83,25 @@ jobs:
             --protoc=${{ env.PROTOC_PATH }} \
             --target=adb
 
-      - name: Organize Artifacts
-        run: |
-          mkdir -p dist/arm64-v8a dist/armeabi-v7a
-          cp platform-tools/build/aarch64/platform-tools/adb dist/arm64-v8a/libadb.so
-          cp platform-tools/build/arm/platform-tools/adb dist/armeabi-v7a/libadb.so
+#      - name: Organize Artifacts
+#        run: |
+#          mkdir -p dist/arm64-v8a dist/armeabi-v7a
+#          cp platform-tools/build/aarch64/platform-tools/adb dist/arm64-v8a/libadb.so
+#          cp platform-tools/build/arm/platform-tools/adb dist/armeabi-v7a/libadb.so
+#
+#          file dist/arm64-v8a/libadb.so
+#          file dist/armeabi-v7a/libadb.so
 
-          file dist/arm64-v8a/libadb.so
-          file dist/armeabi-v7a/libadb.so
+#      - name: Upload Result
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: adb-binaries-for-android
+#          path: dist/
+#           retention-days: 1
 
-      - name: Upload Result
+      - name: Upload Full Build Directory
         uses: actions/upload-artifact@v4
         with:
           name: adb-binaries-for-android
-          path: dist/
+          path: platform-tools/build/
+          retention-days: 1
