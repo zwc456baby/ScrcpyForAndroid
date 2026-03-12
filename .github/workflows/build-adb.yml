@@ -24,15 +24,13 @@ jobs:
       - name: Setup Android NDK
         uses: android-actions/setup-android@v3
         with:
-          api-level: 34
-          build-tools: 34.0.0
-          ndk: 26.1.10909125 # 对应 r26b 版本的具体 Build Number
+          ndk: 27.1.12297006 # 对应 r27b 版本的具体 Build Number
 
       - name: Verify NDK Path
         run: |
           echo "ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
           if [ -z "$ANDROID_NDK_HOME" ]; then
-            echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+            echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> $GITHUB_ENV
           fi
 
       - name: Fetch AOSP Source
