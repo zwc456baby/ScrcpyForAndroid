@@ -1,5 +1,7 @@
 name: Build Android ADB (ARM)
 
+# 由 gemini 辅助生成
+
 on:
   workflow_dispatch: # 支持手动点击运行
 
@@ -19,10 +21,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build cmake g++-multilib python3-pip
 
-      - name: Setup NDK
-        uses: nandroid7/setup-ndk@v1
+      - name: Setup Android NDK
+        uses: android-actions/setup-android@v3
         with:
-          ndk-version: r26b
+          api-level: 34
+          build-tools: 34.0.0
+          ndk: 26.1.10909125 # 对应 r26b 版本的具体 Build Number
+
+      - name: Verify NDK Path
+        run: |
+          echo "ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
+          if [ -z "$ANDROID_NDK_HOME" ]; then
+            echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+          fi
 
       - name: Fetch AOSP Source
         working-directory: ./platform-tools
