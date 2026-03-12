@@ -803,7 +803,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     protected void connectExitExt(boolean userDisconnect) {
         if (!userDisconnect) {  // userDisconnect : 用户主动断开连接
             // 如果自动断开了端口连接，在系统恢复时，重启adb，避免
-            AdbHelper.restartAdb();
+            // 警告！！！ 重启将会导致 adb 配对过程失效，从而无法连接新设备，需要更智能的重启机制
+            // AdbHelper.restartAdb();
         }
         if (headlessMode && !resumeScrcpy && !result_of_Rotation) {
             if (!userDisconnect) {

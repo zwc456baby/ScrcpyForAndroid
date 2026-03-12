@@ -125,8 +125,35 @@ public class AdbHelper {
         });
     }
 
+    /**
+     * https://github.com/lzhiyong/android-sdk-tools
+     * <p>
+     * 尝试自动生成 adb key文件
+     */
+    private static void genKeyFile(Context mContext) {
+        File keyDir = new File(mContext.getFilesDir().getAbsolutePath(), ".android");
+        File privateKey = new File(keyDir, "adbkey");
+        File publicKey = new File(keyDir, "adbkey.pub");
+        if (!keyDir.exists()) {
+            keyDir.mkdirs();
+        }
+        if (!privateKey.exists() || !publicKey.exists()) {
+            privateKey.delete();
+            publicKey.delete();
+            //
+            Log.i("Scrcpy", "adbkey not exists, call gen: " + privateKey.getAbsolutePath());
+            adbCmd(mContext, false, new String[]{
+                    "keygen", privateKey.getAbsolutePath()
+            });
+        }
+    }
+
 
     public static String adbCmd(Context mContext, String... cmd) {
+        return adbCmd(mContext, true, cmd);
+    }
+
+    private static String adbCmd(Context mContext, boolean checkKeyFile, String... cmd) {
         if (cmd == null) {
             return "";
         }
@@ -138,6 +165,15 @@ public class AdbHelper {
         env.put("HOME", mContext.getFilesDir().getAbsolutePath());
         env.put("TMPDIR", mContext.getCacheDir().getAbsolutePath());
         env.put("ANDROID_ADB_SERVER_PORT", "5137");
+        // 尝试使用可构建的 adb 二进制文件
+        // https://github.com/lzhiyong/android-sdk-tools
+        // 此工具需要设置 $ADB_VENDOR_KEYS
+        File keyDir = new File(mContext.getFilesDir().getAbsolutePath(), ".android");
+        env.put("ADB_VENDOR_KEYS", keyDir.getAbsolutePath());
+
+        if (checkKeyFile) {
+            genKeyFile(mContext);
+        }
 
         return ExecUtil.adbCommend(cmds, env, mContext.getFilesDir());
     }
