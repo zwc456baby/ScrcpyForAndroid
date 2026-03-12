@@ -1,0 +1,3 @@
+[submodule "platform-tools"]
+	path = platform-tools
+	url = https://github.com/lzhiyong/android-sdk-tools.git

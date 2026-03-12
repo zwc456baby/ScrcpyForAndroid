@@ -1,0 +1,75 @@
+name: Build Android ADB (ARM)
+
+on:
+  workflow_dispatch: # 支持手动点击运行
+
+jobs:
+  build-adb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake g++-multilib python3-pip
+
+      - name: Setup NDK
+        uses: nandroid7/setup-ndk@v1
+        with:
+          ndk-version: r26b
+
+      - name: Fetch AOSP Source
+        working-directory: ./platform-tools
+        run: python3 get_source.py --tags platform-tools-35.0.2
+
+      - name: Build Host Protoc
+        run: |
+          cd platform-tools/src/protobuf
+          mkdir -p build && cd build
+          cmake -GNinja -Dprotobuf_BUILD_TESTS=OFF ..
+          ninja -j$(nproc)
+
+          PROTOC_ABS_PATH=$(realpath protoc)
+          echo "PROTOC_PATH=$PROTOC_ABS_PATH" >> $GITHUB_ENV
+          echo "Generated Protoc at: $PROTOC_ABS_PATH"
+
+      - name: Build ADB (arm64-v8a)
+        working-directory: ./platform-tools
+        run: |
+          python3 build.py \
+            --ndk=$ANDROID_NDK_HOME \
+            --abi=arm64-v8a \
+            --build=build/aarch64 \
+            --protoc=${{ env.PROTOC_PATH }} \
+            --target=adb
+
+      - name: Build ADB (armeabi-v7a)
+        working-directory: ./platform-tools
+        run: |
+          python3 build.py \
+            --ndk=$ANDROID_NDK_HOME \
+            --abi=armeabi-v7a \
+            --build=build/arm \
+            --protoc=${{ env.PROTOC_PATH }} \
+            --target=adb
+
+      - name: Organize Artifacts
+        run: |
+          mkdir -p dist/arm64-v8a dist/armeabi-v7a
+          cp platform-tools/build/aarch64/platform-tools/adb dist/arm64-v8a/libadb.so
+          cp platform-tools/build/arm/platform-tools/adb dist/armeabi-v7a/libadb.so
+
+          file dist/arm64-v8a/libadb.so
+          file dist/armeabi-v7a/libadb.so
+
+      - name: Upload Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: adb-binaries-for-android
+          path: dist/
