@@ -39,16 +39,29 @@ jobs:
         working-directory: ./platform-tools
         run: python3 get_source.py --tags platform-tools-35.0.2
 
-      - name: Build Host Protoc
+      # 5. 替代原有的 Build Host Protoc 步骤
+      - name: Install System Protoc
         run: |
-          cd platform-tools/src/protobuf
-          mkdir -p build && cd build
-          cmake -GNinja -Dprotobuf_BUILD_TESTS=OFF ..
-          ninja -j$(nproc)
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
 
-          PROTOC_ABS_PATH=$(realpath protoc)
+          PROTOC_ABS_PATH=$(which protoc)
           echo "PROTOC_PATH=$PROTOC_ABS_PATH" >> $GITHUB_ENV
-          echo "Generated Protoc at: $PROTOC_ABS_PATH"
+
+          # 打印版本信息，方便调试
+          echo "Using system protoc version:"
+          protoc --version
+
+#      - name: Build Host Protoc
+#        run: |
+#          cd platform-tools/src/protobuf
+#          mkdir -p build && cd build
+#          cmake -GNinja -Dprotobuf_BUILD_TESTS=OFF ..
+#          ninja -j$(nproc)
+#
+#          PROTOC_ABS_PATH=$(realpath protoc)
+#          echo "PROTOC_PATH=$PROTOC_ABS_PATH" >> $GITHUB_ENV
+#          echo "Generated Protoc at: $PROTOC_ABS_PATH"
 
       - name: Build ADB (arm64-v8a)
         working-directory: ./platform-tools
