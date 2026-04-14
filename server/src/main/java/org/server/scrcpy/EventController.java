@@ -90,7 +90,9 @@ public class EventController {
         int[] buffer = controlByteToIntArray(buf);
 
         long now = SystemClock.uptimeMillis();
-        if (buffer[2] == 0 && buffer[3] == 0) {
+        if (buffer.length == 1) {
+            injectKeycode(buffer[0]);
+        } else if (buffer[2] == 0 && buffer[3] == 0) {
             if (buffer[0] == 28) {
                 proximity = true;           // Proximity event
             } else if (buffer[0] == 29) {
