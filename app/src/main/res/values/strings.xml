@@ -7,6 +7,11 @@
     <string name="label_video_bitrate">Bitrate</string>
     <string name="label_x">x</string>
     <string name="action_start">Start</string>
+    <string name="action_start_usb">Connect via USB</string>
+    <string name="usb_no_device">No USB device detected. Connect a device with a USB cable.</string>
+    <string name="usb_no_adb_interface">USB device found, but ADB is not available. Enable USB debugging on the target device and set the USB mode to allow it.</string>
+    <string name="usb_permission_denied">USB permission denied</string>
+    <string name="usb_connect_failed">USB connection failed:</string>
     <string name="appswitch_button">=</string>
     <string name="home_button">o</string>
     <string name="back_button">\u003C</string>
