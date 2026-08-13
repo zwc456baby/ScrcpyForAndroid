@@ -4,7 +4,7 @@
 
 - This application mirrors display and touch controls from a remote android device to android device.
 
-- Scrcpy for Android uses ADB-Connect interface to connect to android device to be mirrored.
+- Scrcpy for Android uses the ADB interface to connect to the android device to be mirrored, either over the network (WiFi) or over a USB cable.
 
 
 
@@ -17,7 +17,7 @@
 
 
 
-## Instructions to use
+## Instructions to use (WiFi)
 
 - Make sure both devices are on same local network.
 - Enable **ADB-connect/ADB-wireless/ADB over network** on the device to be mirrored. 
@@ -30,6 +30,21 @@
 - To wake up the remote device, **double tap anywhere on screen**.
 - To put the remote device to sleep, **close proxmity sensor and double tap anywhere on the screen**. 
 - To bring back the local android system navbar while mirroring the remote device, **swipe up from the bottom edge of screen**.
+
+
+
+## Instructions to use (USB)
+
+You can also mirror a device connected with a USB cable — no root and no WiFi required. This uses a built-in ADB-over-USB implementation, so the target device does not need to be on any network.
+
+- Connect the target device to this phone with a USB cable (USB-C to USB-C, or an OTG adapter).
+- Enable **USB debugging** in Developer options on the target device.
+- Open the app. When an ADB-capable USB device is detected, the address field is automatically pre-selected to `USB: <device>`.
+  - You can also tap the address drop-down and choose the `USB:` entry manually.
+- Select display parameters and bitrate from the drop-down menus, same as the WiFi flow.
+- Hit **start**.
+- Grant the USB permission prompt on this phone, then accept the **Allow USB debugging?** prompt on the target device (check *Always allow from this computer* to skip it next time).
+- Thats all! You should be seeing the screen of the remote android device. All the touch/wake/navbar gestures above work the same over USB.
 
 
 
