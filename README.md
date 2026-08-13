@@ -35,8 +35,6 @@
 
 ## Instructions to use (USB)
 
-You can also mirror a device connected with a USB cable — no root and no WiFi required. This uses a built-in ADB-over-USB implementation, so the target device does not need to be on any network.
-
 - Connect the target device to this phone with a USB cable (USB-C to USB-C, or an OTG adapter).
 - Enable **USB debugging** in Developer options on the target device.
 - Open the app. When an ADB-capable USB device is detected, the address field is automatically pre-selected to `USB: <device>`.
@@ -44,8 +42,6 @@ You can also mirror a device connected with a USB cable — no root and no WiFi 
 - Select display parameters and bitrate from the drop-down menus, same as the WiFi flow.
 - Hit **start**.
 - Grant the USB permission prompt on this phone, then accept the **Allow USB debugging?** prompt on the target device (check *Always allow from this computer* to skip it next time).
-- Thats all! You should be seeing the screen of the remote android device. All the touch/wake/navbar gestures above work the same over USB.
-
 
 
 ## Connecting to public network devices
