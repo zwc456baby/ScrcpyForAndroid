@@ -3,6 +3,7 @@ package org.client.scrcpy.decoder;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.os.Build;
+import android.util.Log;
 import android.view.Surface;
 
 
@@ -11,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class VideoDecoder {
+    private static final String TAG = "Scrcpy";
     private MediaCodec mCodec;
     private Worker mWorker;
     private AtomicBoolean mIsConfigured = new AtomicBoolean(false);
@@ -59,6 +61,14 @@ public class VideoDecoder {
         }
 
         private void configure(Surface surface, int width, int height, ByteBuffer csd0, ByteBuffer csd1) {
+            if (surface == null) {
+                Log.e(TAG, "VideoDecoder configure skipped: surface is null");
+                return;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !surface.isValid()) {
+                Log.e(TAG, "VideoDecoder configure skipped: surface is invalid");
+                return;
+            }
             if (mIsConfigured.get()) {
                 mIsConfigured.set(false);
                 if (mCodec != null) {
@@ -124,6 +134,7 @@ public class VideoDecoder {
                     }
                 }
             } catch (IllegalStateException e) {
+                Log.e(TAG, "VideoDecoder output loop failed: " + e.getMessage());
             }
 
         }

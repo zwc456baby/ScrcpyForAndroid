@@ -72,16 +72,28 @@ public class Scrcpy extends Service {
     public void setParms(Surface NewSurface, int NewWidth, int NewHeight) {
         this.screenWidth = NewWidth;
         this.screenHeight = NewHeight;
-        this.surface = NewSurface;
+        if (NewSurface != null) {
+            this.surface = NewSurface;
+        }
 
-        if(videoDecoder != null){
+        if (videoDecoder != null) {
             videoDecoder.start();
         }
-        if(audioDecoder != null){
+        if (audioDecoder != null) {
             audioDecoder.start();
         }
 
         updateAvailable.set(true);
+    }
+
+    private boolean isSurfaceReady(Surface displaySurface) {
+        if (displaySurface == null) {
+            return false;
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            return displaySurface.isValid();
+        }
+        return true;
     }
 
     public void start(Surface surface, String serverAdr, int screenHeight, int screenWidth, int delay, boolean enableAudio) {
@@ -440,8 +452,10 @@ public class Scrcpy extends Service {
                                 }
                             }
                             updateAvailable.set(false);
-                            if (streamSettings != null) {
+                            if (streamSettings != null && isSurfaceReady(surface)) {
                                 videoDecoder.configure(surface, screenWidth, screenHeight, streamSettings.sps, streamSettings.pps);
+                            } else if (streamSettings != null) {
+                                Log.e("Scrcpy", "Skipping video configure: surface not ready");
                             }
                         } else if (videoPacket.flag == VideoPacket.Flag.END) {
                             // need close stream

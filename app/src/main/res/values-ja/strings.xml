@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="app_name">ScrcpyForAndroid</string>
+  <string name="app_name">Scrcpy for Android</string>
+  <string name="app_subtitle">リモートデバイスをミラーリング</string>
   <string name="label_server_ip">リモートデバイス IP アドレス、例: 192.168.0.73</string>
   <string name="label_video_resolution">解像度</string>
   <string name="delay_control">遅延コントロール</string>

@@ -82,7 +82,7 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
                     remote_device_height = rem_res[1];
                     remote_device_width = rem_res[0];
                     first_time = false;
-                    Log.d("fuck", "onServiceConnected: " + remote_device_height + "|" + remote_device_width);
+                    Log.d("Scrcpy", "onServiceConnected: " + remote_device_height + "x" + remote_device_width);
                     connectCallBack.onConnect(Math.min(remote_device_width, remote_device_height), Math.max(remote_device_width, remote_device_height));
                 }
             } else {

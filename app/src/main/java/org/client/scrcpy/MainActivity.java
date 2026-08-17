@@ -25,6 +25,7 @@ import android.util.Log;
 import android.view.Display;
 import android.view.KeyEvent;
 import android.view.Surface;
+import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -75,6 +76,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     private String serverAdr = null;
     private SurfaceView surfaceView;
     private Surface surface;
+    private SurfaceHolder.Callback surfaceCallback;
+    private boolean scrcpyServiceStarted = false;
     private Scrcpy scrcpy;
     private long timestamp = 0;
 
@@ -147,11 +150,14 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         } catch (Exception e) {
             e.printStackTrace();
         }
+        if (surfaceView != null && surfaceCallback != null) {
+            surfaceView.getHolder().removeCallback(surfaceCallback);
+            surfaceView = null;
+        }
+        scrcpyServiceStarted = false;
+        surfaceCallback = null;
         if (surface != null) {
             surface = null;
-        }
-        if (surfaceView != null) {
-            surfaceView = null;
         }
         serviceBound = false;
         scrcpy_main();
@@ -168,6 +174,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         this.context = this;
+        setTitle(getString(R.string.app_name));
         if (savedInstanceState != null) {
             first_time = savedInstanceState.getBoolean("first_time");
             landscape = savedInstanceState.getBoolean("landscape");
@@ -550,6 +557,16 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         screenWidth = temp;
     }
 
+    private boolean isSurfaceReady(Surface displaySurface) {
+        if (displaySurface == null) {
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return displaySurface.isValid();
+        }
+        return true;
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private void start_screen_copy_magic() {
         setContentView(R.layout.surface);
@@ -562,7 +579,31 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                         | View.SYSTEM_UI_FLAG_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         surfaceView = findViewById(R.id.decoder_surface);
-        surface = surfaceView.getHolder().getSurface();
+        scrcpyServiceStarted = false;
+        surfaceCallback = new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                surface = holder.getSurface();
+                if (!scrcpyServiceStarted) {
+                    scrcpyServiceStarted = true;
+                    start_Scrcpy_service();
+                }
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                surface = holder.getSurface();
+                if (serviceBound && scrcpy != null && isSurfaceReady(surface)) {
+                    scrcpy.setParms(surface, screenWidth, screenHeight);
+                }
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+                surface = null;
+            }
+        };
+        surfaceView.getHolder().addCallback(surfaceCallback);
         final LinearLayout nav_bar = findViewById(R.id.nav_button_bar);
         if (PreUtils.get(context, Constant.CONTROL_NAV, false) &&
                 !PreUtils.get(context, Constant.CONTROL_NO, false)) {
@@ -663,8 +704,13 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                             | View.SYSTEM_UI_FLAG_FULLSCREEN
                             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
             if (serviceBound) {
-                // 黑屏无需修复， 因为只是自带的配置问题
-                linearLayout = findViewById(R.id.container1);
+                if (surfaceView != null) {
+                    Surface currentSurface = surfaceView.getHolder().getSurface();
+                    if (isSurfaceReady(currentSurface)) {
+                        surface = currentSurface;
+                        scrcpy.setParms(surface, screenWidth, screenHeight);
+                    }
+                }
                 scrcpy.resume();
             }
         }
