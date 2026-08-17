@@ -126,15 +126,15 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                             Toast.makeText(context, "Connection Timed out 2", Toast.LENGTH_SHORT).show();
                         } else {
                             first_time = false;
-                            // 连接成功后，再把按钮显示出来
-                            set_display_nd_touch();
+                            applyClientOrientationFromRemote();
+                            refreshMirrorLayout();
                             connectSuccessExt();
                         }
                     });
                 });
             } else {
                 scrcpy.setParms(surface, screenWidth, screenHeight);
-                set_display_nd_touch();
+                refreshMirrorLayout();
                 connectSuccessExt();
             }
             // set_display_nd_touch();
@@ -444,6 +444,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 //        float this_dev_height = metrics.heightPixels;
 //        float this_dev_width = metrics.widthPixels;
 
+        if (linearLayout == null || surfaceView == null || scrcpy == null) {
+            return;
+        }
         float this_dev_height = linearLayout.getHeight();
         float this_dev_width = linearLayout.getWidth();
         if (PreUtils.get(context, Constant.CONTROL_NAV, false) &&
@@ -733,6 +736,27 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 != Configuration.ORIENTATION_PORTRAIT;
     }
 
+    @SuppressLint("SourceLockedOrientationActivity")
+    private void applyClientOrientationFromRemote() {
+        if (scrcpy == null) {
+            return;
+        }
+        int[] remote = scrcpy.getOrientedRemoteSize(landscape);
+        if (remote[0] <= 0 || remote[1] <= 0) {
+            return;
+        }
+        boolean remoteLandscape = remote[0] > remote[1];
+        landscape = remoteLandscape;
+        result_of_Rotation = true;
+        Log.i("Scrcpy", "Client orientation from remote " + remote[0] + "x" + remote[1]
+                + " landscape=" + remoteLandscape);
+        if (remoteLandscape) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        } else {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        }
+    }
+
     private void applyMirrorImmersiveMode() {
         final View decorView = getWindow().getDecorView();
         decorView.setSystemUiVisibility(
@@ -863,21 +887,12 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
     }
 
-    @SuppressLint("SourceLockedOrientationActivity")
     @Override
     public void loadNewRotation() {
         ThreadUtils.post(() -> {
-            if (first_time) {
-                first_time = false;
-            }
             result_of_Rotation = true;
-            landscape = !landscape;
-            swapDimensions();
-            if (landscape) {
-                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-            } else {
-                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
-            }
+            applyClientOrientationFromRemote();
+            refreshMirrorLayout();
         });
     }
 

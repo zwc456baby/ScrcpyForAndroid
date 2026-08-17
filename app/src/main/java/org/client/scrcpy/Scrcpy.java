@@ -99,6 +99,25 @@ public class Scrcpy extends Service {
         return true;
     }
 
+    private boolean tryConfigureVideoDecoder(VideoPacket.StreamSettings streamSettings) {
+        if (streamSettings == null || videoDecoder == null) {
+            return false;
+        }
+        int decodeW = remote_video_resolution[0] > 0
+                ? remote_video_resolution[0]
+                : (remote_dev_resolution[0] > 0 ? remote_dev_resolution[0] : screenWidth);
+        int decodeH = remote_video_resolution[1] > 0
+                ? remote_video_resolution[1]
+                : (remote_dev_resolution[1] > 0 ? remote_dev_resolution[1] : screenHeight);
+        if (!isSurfaceReady(surface)) {
+            Log.e("Scrcpy", "Skipping video configure: surface not ready");
+            return false;
+        }
+        Log.i("Scrcpy", "Decoder configure " + decodeW + "x" + decodeH);
+        videoDecoder.configure(surface, decodeW, decodeH, streamSettings.sps, streamSettings.pps, videoMimeType);
+        return true;
+    }
+
     public void start(Surface surface, String serverAdr, int screenHeight, int screenWidth, int delay, boolean enableAudio) {
         start(surface, serverAdr, screenHeight, screenWidth, delay, enableAudio, Options.CODEC_H264);
     }
@@ -178,25 +197,54 @@ public class Scrcpy extends Service {
         if (actionMasked == MotionEvent.ACTION_MOVE) {
             for (int i = 0; i < touch_event.getPointerCount(); i++) {
                 int currentPointerId = touch_event.getPointerId(i);
-                int x = mapToRemote((int) touch_event.getX(i), displayW, remoteW);
-                int y = mapToRemote((int) touch_event.getY(i), displayH, remoteH);
-                sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(), x, y, currentPointerId);
+                int[] mapped = mapTouchToRemote(touch_event.getX(i), touch_event.getY(i),
+                        displayW, displayH, remoteW, remoteH);
+                sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(),
+                        mapped[0], mapped[1], currentPointerId);
             }
         } else {
-            int x = mapToRemote((int) touch_event.getX(), displayW, remoteW);
-            int y = mapToRemote((int) touch_event.getY(), displayH, remoteH);
+            int[] mapped = mapTouchToRemote(touch_event.getX(), touch_event.getY(),
+                    displayW, displayH, remoteW, remoteH);
             if (actionMasked == MotionEvent.ACTION_DOWN) {
-                Log.i("Scrcpy", "touch DOWN " + x + "," + y + " surface=" + displayW + "x" + displayH
+                Log.i("Scrcpy", "touch DOWN " + mapped[0] + "," + mapped[1]
+                        + " surface=" + displayW + "x" + displayH
                         + " remote=" + (int) remoteW + "x" + (int) remoteH
                         + " video=" + remote_video_resolution[0] + "x" + remote_video_resolution[1]);
             }
-            sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(), x, y, pointerId);
+            sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(),
+                    mapped[0], mapped[1], pointerId);
         }
         return true;
     }
 
-    private static int mapToRemote(int value, int surfaceSize, float remoteSize) {
-        return (int) (value * remoteSize / surfaceSize);
+    /**
+     * Mappa il tocco dal SurfaceView ai pixel del device remoto, con letterbox
+     * se l'aspect del remoto non coincide con quello del client.
+     */
+    private static int[] mapTouchToRemote(float touchX, float touchY,
+                                          int displayW, int displayH,
+                                          float remoteW, float remoteH) {
+        float scale = Math.min(displayW / remoteW, displayH / remoteH);
+        float contentW = remoteW * scale;
+        float contentH = remoteH * scale;
+        if (contentW <= 0f || contentH <= 0f) {
+            return new int[]{0, 0};
+        }
+        float offX = (displayW - contentW) / 2f;
+        float offY = (displayH - contentH) / 2f;
+        int x = Math.round((touchX - offX) * remoteW / contentW);
+        int y = Math.round((touchY - offY) * remoteH / contentH);
+        if (x < 0) {
+            x = 0;
+        } else if (x >= (int) remoteW) {
+            x = (int) remoteW - 1;
+        }
+        if (y < 0) {
+            y = 0;
+        } else if (y >= (int) remoteH) {
+            y = (int) remoteH - 1;
+        }
+        return new int[]{x, y};
     }
 
     private void sendTouchEvent(int action, int buttonState, int x, int y, int pointerId) {
@@ -222,12 +270,28 @@ public class Scrcpy extends Service {
     }
 
     public int[] getOrientedRemoteSize(boolean landscape) {
-        int a = remote_dev_resolution[0];
-        int b = remote_dev_resolution[1];
-        if (landscape) {
-            return new int[]{Math.max(a, b), Math.min(a, b)};
+        int w = remote_dev_resolution[0];
+        int h = remote_dev_resolution[1];
+        if (w > 0 && h > 0) {
+            return new int[]{w, h};
         }
-        return new int[]{Math.min(a, b), Math.max(a, b)};
+        if (landscape) {
+            return new int[]{Math.max(w, h), Math.min(w, h)};
+        }
+        return new int[]{Math.min(w, h), Math.max(w, h)};
+    }
+
+    public void applyRemoteRotation() {
+        swapPair(remote_dev_resolution);
+        swapPair(remote_video_resolution);
+        Log.i("Scrcpy", "Remote rotation device=" + remote_dev_resolution[0] + "x" + remote_dev_resolution[1]
+                + " video=" + remote_video_resolution[0] + "x" + remote_video_resolution[1]);
+    }
+
+    private static void swapPair(int[] values) {
+        int tmp = values[0];
+        values[0] = values[1];
+        values[1] = tmp;
     }
 
     public boolean check_socket_connection() {
@@ -318,12 +382,6 @@ public class Scrcpy extends Service {
                 remote_video_resolution[1] = handshake[3];
                 Log.i("Scrcpy", "Handshake device=" + handshake[0] + "x" + handshake[1]
                         + " video=" + handshake[2] + "x" + handshake[3]);
-                if (remote_dev_resolution[0] > remote_dev_resolution[1]) {
-                    first_time = false;
-                    int i = remote_dev_resolution[0];
-                    remote_dev_resolution[0] = remote_dev_resolution[1];
-                    remote_dev_resolution[1] = i;
-                }
 
                 socketInputStream = dataInputStream;
                 socketOutputStream = dataOutputStream;
@@ -405,11 +463,17 @@ public class Scrcpy extends Service {
         long lastAudioOffset = 0;
 
         boolean waitKeyFrame = false;
+        boolean pendingConfigure = false;
+        long lastKeyframeRequest = 0;
 
 
         while (LetServceRunning.get()) {
             boolean waitEvent = true;
             try {
+                if (pendingConfigure && tryConfigureVideoDecoder(streamSettings)) {
+                    pendingConfigure = false;
+                    updateAvailable.set(false);
+                }
                 byte[] sendevent;
                 int drained = 0;
                 while ((sendevent = event.poll()) != null) {
@@ -449,72 +513,67 @@ public class Scrcpy extends Service {
                     dataInputStream.readFully(packet, 0, size);
                     if (MediaPacket.Type.getType(packet[0]) == MediaPacket.Type.VIDEO) {
                         VideoPacket videoPacket = VideoPacket.readHead(packet);
-                        // byte[] data = videoPacket.data;
-                        if (videoPacket.flag == VideoPacket.Flag.CONFIG || updateAvailable.get()) {
-                            if (!updateAvailable.get()) {
-                                int dataLength = packet.length - videoPacket.headLength();
-                                byte[] data = new byte[dataLength];
-                                System.arraycopy(packet, videoPacket.headLength(), data, 0, dataLength);
-                                streamSettings = VideoPacket.getStreamSettings(data, "video/hevc".equals(videoMimeType));
-                                if (!first_time) {
-                                    if (serviceCallbacks != null) {
-                                        serviceCallbacks.loadNewRotation();
+                        if (videoPacket.flag == VideoPacket.Flag.CONFIG) {
+                            // Sempre parsare SPS/PPS: setParms/rotazione possono alzare
+                            // updateAvailable prima del primo CONFIG e, se lo saltiamo, lo
+                            // schermo resta nero per sempre (decoder mai configurato).
+                            int dataLength = packet.length - videoPacket.headLength();
+                            byte[] data = new byte[dataLength];
+                            System.arraycopy(packet, videoPacket.headLength(), data, 0, dataLength);
+                            streamSettings = VideoPacket.getStreamSettings(data, "video/hevc".equals(videoMimeType));
+                            pendingConfigure = true;
+                            if (!first_time) {
+                                applyRemoteRotation();
+                                if (serviceCallbacks != null) {
+                                    serviceCallbacks.loadNewRotation();
+                                }
+                                int waitSurface = 40;
+                                while (!updateAvailable.get() && LetServceRunning.get() && waitSurface-- > 0) {
+                                    try {
+                                        Thread.sleep(50);
+                                    } catch (InterruptedException e) {
+                                        e.printStackTrace();
                                     }
-                                    while (!updateAvailable.get()) {
-                                        // Waiting for new surface
-                                        try {
-                                            Thread.sleep(100);
-                                        } catch (InterruptedException e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-
                                 }
                             }
+                        }
+                        if (pendingConfigure || updateAvailable.get()) {
                             updateAvailable.set(false);
-                            if (streamSettings != null) {
-                                int decodeW = remote_video_resolution[0] > 0
-                                        ? remote_video_resolution[0]
-                                        : (remote_dev_resolution[0] > 0 ? remote_dev_resolution[0] : screenWidth);
-                                int decodeH = remote_video_resolution[1] > 0
-                                        ? remote_video_resolution[1]
-                                        : (remote_dev_resolution[1] > 0 ? remote_dev_resolution[1] : screenHeight);
-                                if (!isSurfaceReady(surface)) {
-                                    Log.e("Scrcpy", "Skipping video configure: surface not ready");
-                                } else {
-                                    Log.i("Scrcpy", "Decoder configure " + decodeW + "x" + decodeH);
-                                    videoDecoder.configure(surface, decodeW, decodeH, streamSettings.sps, streamSettings.pps, videoMimeType);
-                                }
+                            if (tryConfigureVideoDecoder(streamSettings)) {
+                                pendingConfigure = false;
                             }
-                        } else if (videoPacket.flag == VideoPacket.Flag.END) {
+                        }
+                        if (videoPacket.flag == VideoPacket.Flag.END) {
                             // need close stream
                             Log.e("Scrcpy", "END ... ");
-                        } else {
+                        } else if (videoPacket.flag != VideoPacket.Flag.CONFIG) {
                             // Log.e("Scrcpy", "videoPacket presentationTimeStamp ... " + videoPacket.presentationTimeStamp);
                             if (lastVideoOffset == 0) {
                                 lastVideoOffset = System.currentTimeMillis() - (videoPacket.presentationTimeStamp / 1000);
                             }
                             long latencyMs = System.currentTimeMillis() - (lastVideoOffset + (videoPacket.presentationTimeStamp / 1000));
-                            // delay troppo aggressivo = schermo nero permanente: decodifica sempre i keyframe
-                            // e i frame entro la soglia; se in ritardo chiedi un nuovo keyframe ma non bloccare per sempre
+                            // Software encoder: non scartare i P-frame sotto ~1s, altrimenti
+                            // si attende un keyframe e lo specchio sembra lento/a scatti.
                             if (videoPacket.flag == VideoPacket.Flag.KEY_FRAME) {
                                 waitKeyFrame = false;
-                                if (latencyMs > delay * 3L) {
-                                    // stream molto in ritardo: riallinea l'offset e continua
+                                if (latencyMs > 1500) {
                                     lastVideoOffset = System.currentTimeMillis() - (videoPacket.presentationTimeStamp / 1000);
                                 }
                                 videoDecoder.decodeSample(packet, videoPacket.headLength(), packet.length - videoPacket.headLength(),
                                         0, videoPacket.flag.getFlag());
-                            } else {
-                                if (waitKeyFrame) {
-                                    requestNewKeyFrame();
-                                } else if (latencyMs <= Math.max(delay, 200)) {
-                                    videoDecoder.decodeSample(packet, videoPacket.headLength(), packet.length - videoPacket.headLength(),
-                                            0, videoPacket.flag.getFlag());
-                                } else {
-                                    waitKeyFrame = true;
+                            } else if (waitKeyFrame) {
+                                long now = System.currentTimeMillis();
+                                if (now - lastKeyframeRequest > 400) {
+                                    lastKeyframeRequest = now;
                                     requestNewKeyFrame();
                                 }
+                            } else if (latencyMs <= 1500) {
+                                videoDecoder.decodeSample(packet, videoPacket.headLength(), packet.length - videoPacket.headLength(),
+                                        0, videoPacket.flag.getFlag());
+                            } else {
+                                waitKeyFrame = true;
+                                lastKeyframeRequest = System.currentTimeMillis();
+                                requestNewKeyFrame();
                             }
                         }
                         first_time = false;
