@@ -55,7 +55,10 @@ public class Scrcpy extends Service {
     private final AtomicBoolean LetServceRunning = new AtomicBoolean(true);
     private ServiceCallbacks serviceCallbacks;
     private final int[] remote_dev_resolution = new int[2];
+    private final int[] remote_video_resolution = new int[2];
     private boolean socket_status = false;
+
+    private String videoMimeType = "video/avc";
 
     private DataInputStream socketInputStream = null;
     private DataOutputStream socketOutputStream = null;
@@ -97,11 +100,10 @@ public class Scrcpy extends Service {
     }
 
     public void start(Surface surface, String serverAdr, int screenHeight, int screenWidth, int delay, boolean enableAudio) {
-//        this.videoDecoder = new VideoDecoder();
-//        videoDecoder.start();
-//        this.audioDecoder = new AudioDecoder();
-//        audioDecoder.start();
+        start(surface, serverAdr, screenHeight, screenWidth, delay, enableAudio, Options.CODEC_H264);
+    }
 
+    public void start(Surface surface, String serverAdr, int screenHeight, int screenWidth, int delay, boolean enableAudio, String videoCodec) {
         String[] serverInfo = Util.getServerHostAndPort(serverAdr);
         this.serverHost = serverInfo[0];
         this.serverPort = Integer.parseInt(serverInfo[1]);
@@ -109,6 +111,7 @@ public class Scrcpy extends Service {
         this.screenHeight = screenHeight;
         this.screenWidth = screenWidth;
         this.surface = surface;
+        this.videoMimeType = Options.CODEC_H265.equalsIgnoreCase(videoCodec) ? "video/hevc" : "video/avc";
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -157,51 +160,43 @@ public class Scrcpy extends Service {
 
 
     public boolean touchevent(MotionEvent touch_event, boolean landscape, int displayW, int displayH) {
-        float remoteW;
-        float remoteH;
-        float realH;
-        float realW;
-
-        if (landscape) {  // 横屏的话，宽高相反
-            remoteW = Math.max(remote_dev_resolution[0], remote_dev_resolution[1]);
-            remoteH = Math.min(remote_dev_resolution[0], remote_dev_resolution[1]);
-
-            realW = Math.min(remoteW, screenWidth);
-            realH = realW * remoteH / remoteW;
-        } else {
-            remoteW = Math.min(remote_dev_resolution[0], remote_dev_resolution[1]);
-            remoteH = Math.max(remote_dev_resolution[0], remote_dev_resolution[1]);
-            realH = Math.min(remoteH, screenHeight);
-            realW = realH * remoteW / remoteH;
+        if (displayW <= 0 || displayH <= 0) {
+            return true;
         }
 
+        int[] remote = getOrientedRemoteSize(landscape);
+        float remoteW = remote[0];
+        float remoteH = remote[1];
+        if (remoteW <= 0 || remoteH <= 0) {
+            return true;
+        }
+
+        int actionMasked = touch_event.getActionMasked();
         int actionIndex = touch_event.getActionIndex();
         int pointerId = touch_event.getPointerId(actionIndex);
-        int pointCount = touch_event.getPointerCount();
-        // Log.e("Scrcpy", "pointer id: " + pointerId + " , action: " + touch_event.getAction() + " ,point count: " + pointCount + " x: " + touch_event.getX() + " y: " + touch_event.getY());
 
-        switch (touch_event.getAction()) {
-            case MotionEvent.ACTION_MOVE: // 所有手指移动
-                // 遍历所有触摸点，使用 pointerId 和 pointerIndex 来获取所有触摸点的信息
-                for (int i = 0; i < touch_event.getPointerCount(); i++) {
-                    int currentPointerId = touch_event.getPointerId(i);
-                    int x = (int) touch_event.getX(i);
-                    int y = (int) touch_event.getY(i);
-                    // 处理每一个触摸点的x, y坐标
-                    // Log.e("Scrcpy", "触摸移动，index : " + i + " ,x : " + x + " , y: " + y + " ,currentPointerId: " + currentPointerId);
-                    sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(), (int) (x * realW / displayW), (int) (y * realH / displayH), currentPointerId);
-                }
-                break;
-            case MotionEvent.ACTION_POINTER_UP: // 中间手指抬起
-            case MotionEvent.ACTION_UP: // 最后一个手指抬起
-            case MotionEvent.ACTION_DOWN: // 第一个手指按下
-            case MotionEvent.ACTION_POINTER_DOWN: // 中间的手指按下
-            default:
-                sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(), (int) (touch_event.getX() * realW / displayW), (int) (touch_event.getY() * realH / displayH), pointerId);
-                break;
-
+        if (actionMasked == MotionEvent.ACTION_MOVE) {
+            for (int i = 0; i < touch_event.getPointerCount(); i++) {
+                int currentPointerId = touch_event.getPointerId(i);
+                int x = mapToRemote((int) touch_event.getX(i), displayW, remoteW);
+                int y = mapToRemote((int) touch_event.getY(i), displayH, remoteH);
+                sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(), x, y, currentPointerId);
+            }
+        } else {
+            int x = mapToRemote((int) touch_event.getX(), displayW, remoteW);
+            int y = mapToRemote((int) touch_event.getY(), displayH, remoteH);
+            if (actionMasked == MotionEvent.ACTION_DOWN) {
+                Log.i("Scrcpy", "touch DOWN " + x + "," + y + " surface=" + displayW + "x" + displayH
+                        + " remote=" + (int) remoteW + "x" + (int) remoteH
+                        + " video=" + remote_video_resolution[0] + "x" + remote_video_resolution[1]);
+            }
+            sendTouchEvent(touch_event.getAction(), touch_event.getButtonState(), x, y, pointerId);
         }
         return true;
+    }
+
+    private static int mapToRemote(int value, int surfaceSize, float remoteSize) {
+        return (int) (value * remoteSize / surfaceSize);
     }
 
     private void sendTouchEvent(int action, int buttonState, int x, int y, int pointerId) {
@@ -224,6 +219,15 @@ public class Scrcpy extends Service {
 
     public int[] get_remote_device_resolution() {
         return remote_dev_resolution;
+    }
+
+    public int[] getOrientedRemoteSize(boolean landscape) {
+        int a = remote_dev_resolution[0];
+        int b = remote_dev_resolution[1];
+        if (landscape) {
+            return new int[]{Math.max(a, b), Math.min(a, b)};
+        }
+        return new int[]{Math.min(a, b), Math.max(a, b)};
     }
 
     public boolean check_socket_connection() {
@@ -274,15 +278,17 @@ public class Scrcpy extends Service {
 
                 Log.e("Scrcpy", "Connecting to " + LOCAL_IP + " success");
 
-                // 能够正常进行连接，说明可能建立了 tcp 连接，需要等待数据
-                // 一次等待时间为 2s ，最多等待五次，也就是 10秒
-                if (firstConnect) {  // 此处有 while 循环，不能一直设置为10
+                // Il server accetta una sola connessione: non chiudere il primo socket troppo presto.
+                // ADB forward può risultare "connected" prima che app_process sia in listen.
+                int waitResolutionCount;
+                if (firstConnect) {
                     firstConnect = false;
-                    // waitResolutionCount 为 10，等待100ms 也就是共计一秒钟，设置attempts 为 5，也就是 5秒后则退出
-                    attempts = 5;
+                    attempts = 8;
+                    waitResolutionCount = 50; // 5s sul primo tentativo
+                } else {
+                    waitResolutionCount = 20; // 2s sui retry
                 }
                 dataInputStream = new DataInputStream(socket.getInputStream());
-                int waitResolutionCount = 10;
                 while (dataInputStream.available() <= 0 && waitResolutionCount > 0) {
                     waitResolutionCount--;
                     try {
@@ -298,13 +304,20 @@ public class Scrcpy extends Service {
                 dataOutputStream = new DataOutputStream(socket.getOutputStream());
                 attempts = 0;
                 byte[] buf = new byte[16];
-                dataInputStream.read(buf, 0, 16);
-                for (int i = 0; i < remote_dev_resolution.length; i++) {
-                    remote_dev_resolution[i] = (((int) (buf[i * 4]) << 24) & 0xFF000000) |
+                dataInputStream.readFully(buf, 0, 16);
+                int[] handshake = new int[4];
+                for (int i = 0; i < handshake.length; i++) {
+                    handshake[i] = (((int) (buf[i * 4]) << 24) & 0xFF000000) |
                             (((int) (buf[i * 4 + 1]) << 16) & 0xFF0000) |
                             (((int) (buf[i * 4 + 2]) << 8) & 0xFF00) |
                             ((int) (buf[i * 4 + 3]) & 0xFF);
                 }
+                remote_dev_resolution[0] = handshake[0];
+                remote_dev_resolution[1] = handshake[1];
+                remote_video_resolution[0] = handshake[2];
+                remote_video_resolution[1] = handshake[3];
+                Log.i("Scrcpy", "Handshake device=" + handshake[0] + "x" + handshake[1]
+                        + " video=" + handshake[2] + "x" + handshake[3]);
                 if (remote_dev_resolution[0] > remote_dev_resolution[1]) {
                     first_time = false;
                     int i = remote_dev_resolution[0];
@@ -397,8 +410,9 @@ public class Scrcpy extends Service {
         while (LetServceRunning.get()) {
             boolean waitEvent = true;
             try {
-                byte[] sendevent = event.poll();
-                if (sendevent != null) {
+                byte[] sendevent;
+                int drained = 0;
+                while ((sendevent = event.poll()) != null) {
                     waitEvent = false;
                     try {
                         byte[] data = ControlPacket.toArray(MediaPacket.Type.CONTROL, sendevent);
@@ -409,9 +423,15 @@ public class Scrcpy extends Service {
                             serviceCallbacks.errorDisconnect();
                         }
                         LetServceRunning.set(false);
-                    } finally {
-                        // event = null;
+                        break;
                     }
+                    drained++;
+                    if (drained >= 64) {
+                        break;
+                    }
+                }
+                if (drained > 0) {
+                    dataOutputStream.flush();
                 }
 
                 if (dataInputStream.available() > 0) {
@@ -435,7 +455,7 @@ public class Scrcpy extends Service {
                                 int dataLength = packet.length - videoPacket.headLength();
                                 byte[] data = new byte[dataLength];
                                 System.arraycopy(packet, videoPacket.headLength(), data, 0, dataLength);
-                                streamSettings = VideoPacket.getStreamSettings(data);
+                                streamSettings = VideoPacket.getStreamSettings(data, "video/hevc".equals(videoMimeType));
                                 if (!first_time) {
                                     if (serviceCallbacks != null) {
                                         serviceCallbacks.loadNewRotation();
@@ -452,33 +472,48 @@ public class Scrcpy extends Service {
                                 }
                             }
                             updateAvailable.set(false);
-                            if (streamSettings != null && isSurfaceReady(surface)) {
-                                videoDecoder.configure(surface, screenWidth, screenHeight, streamSettings.sps, streamSettings.pps);
-                            } else if (streamSettings != null) {
-                                Log.e("Scrcpy", "Skipping video configure: surface not ready");
+                            if (streamSettings != null) {
+                                int decodeW = remote_video_resolution[0] > 0
+                                        ? remote_video_resolution[0]
+                                        : (remote_dev_resolution[0] > 0 ? remote_dev_resolution[0] : screenWidth);
+                                int decodeH = remote_video_resolution[1] > 0
+                                        ? remote_video_resolution[1]
+                                        : (remote_dev_resolution[1] > 0 ? remote_dev_resolution[1] : screenHeight);
+                                if (!isSurfaceReady(surface)) {
+                                    Log.e("Scrcpy", "Skipping video configure: surface not ready");
+                                } else {
+                                    Log.i("Scrcpy", "Decoder configure " + decodeW + "x" + decodeH);
+                                    videoDecoder.configure(surface, decodeW, decodeH, streamSettings.sps, streamSettings.pps, videoMimeType);
+                                }
                             }
                         } else if (videoPacket.flag == VideoPacket.Flag.END) {
                             // need close stream
                             Log.e("Scrcpy", "END ... ");
                         } else {
                             // Log.e("Scrcpy", "videoPacket presentationTimeStamp ... " + videoPacket.presentationTimeStamp);
-                            // 帧在 100 ms 以内
                             if (lastVideoOffset == 0) {
                                 lastVideoOffset = System.currentTimeMillis() - (videoPacket.presentationTimeStamp / 1000);
                             }
+                            long latencyMs = System.currentTimeMillis() - (lastVideoOffset + (videoPacket.presentationTimeStamp / 1000));
+                            // delay troppo aggressivo = schermo nero permanente: decodifica sempre i keyframe
+                            // e i frame entro la soglia; se in ritardo chiedi un nuovo keyframe ma non bloccare per sempre
                             if (videoPacket.flag == VideoPacket.Flag.KEY_FRAME) {
-                                if (System.currentTimeMillis() - (lastVideoOffset + (videoPacket.presentationTimeStamp / 1000)) < delay) {
-                                    waitKeyFrame = false;
+                                waitKeyFrame = false;
+                                if (latencyMs > delay * 3L) {
+                                    // stream molto in ritardo: riallinea l'offset e continua
+                                    lastVideoOffset = System.currentTimeMillis() - (videoPacket.presentationTimeStamp / 1000);
+                                }
+                                videoDecoder.decodeSample(packet, videoPacket.headLength(), packet.length - videoPacket.headLength(),
+                                        0, videoPacket.flag.getFlag());
+                            } else {
+                                if (waitKeyFrame) {
+                                    requestNewKeyFrame();
+                                } else if (latencyMs <= Math.max(delay, 200)) {
                                     videoDecoder.decodeSample(packet, videoPacket.headLength(), packet.length - videoPacket.headLength(),
                                             0, videoPacket.flag.getFlag());
                                 } else {
                                     waitKeyFrame = true;
                                     requestNewKeyFrame();
-                                }
-                            } else {
-                                if (!waitKeyFrame) {
-                                    videoDecoder.decodeSample(packet, videoPacket.headLength(), packet.length - videoPacket.headLength(),
-                                            0, videoPacket.flag.getFlag());
                                 }
                             }
                         }

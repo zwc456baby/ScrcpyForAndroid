@@ -39,35 +39,103 @@ public class ScreenEncoder implements Device.RotationListener {
     private int bitRate;
     private int frameRate;
     private int iFrameInterval;
+    private String mimeType = "video/avc";
+    private String encoderName = "";
 
     public ScreenEncoder(int bitRate, int frameRate, int iFrameInterval) {
+        this(bitRate, frameRate, iFrameInterval, "video/avc", "");
+    }
+
+    public ScreenEncoder(int bitRate, int frameRate, int iFrameInterval, String mimeType, String encoderName) {
         this.bitRate = bitRate;
-        this.frameRate = frameRate;
+        this.frameRate = frameRate > 0 ? frameRate : DEFAULT_FRAME_RATE;
         this.iFrameInterval = iFrameInterval;
+        this.mimeType = mimeType == null || mimeType.isEmpty() ? "video/avc" : mimeType;
+        this.encoderName = normalizeEncoderName(encoderName);
     }
 
     public ScreenEncoder(int bitRate) {
         this(bitRate, DEFAULT_FRAME_RATE, DEFAULT_I_FRAME_INTERVAL);
     }
 
-    private static MediaCodec createCodec() throws IOException {
-        return MediaCodec.createEncoderByType("video/avc");
+    public ScreenEncoder(Options options) {
+        this(options.getBitRate(), options.getFrameRate(), DEFAULT_I_FRAME_INTERVAL,
+                options.getVideoMimeType(),
+                options.hasCustomEncoder() ? options.getVideoEncoder() : "");
     }
 
-    private static MediaFormat createFormat(int bitRate, int frameRate, int iFrameInterval) throws IOException {
+    private static String normalizeEncoderName(String encoderName) {
+        if (encoderName == null) {
+            return "";
+        }
+        String name = encoderName.trim();
+        if (name.isEmpty() || Options.DEFAULT_ENCODER.equals(name)) {
+            return "";
+        }
+        return name;
+    }
+
+    private MediaCodec createCodec(int attempt) throws IOException {
+        Exception last = null;
+        boolean hevc = "video/hevc".equals(mimeType);
+        String[] fallbacks;
+        if (attempt == 0) {
+            fallbacks = hevc
+                    ? new String[]{encoderName, null, "c2.android.hevc.encoder", "OMX.google.hevc.encoder"}
+                    : new String[]{encoderName, null, "c2.android.avc.encoder", "OMX.google.h264.encoder"};
+        } else {
+            fallbacks = hevc
+                    ? new String[]{"c2.android.hevc.encoder", "OMX.google.hevc.encoder", null}
+                    : new String[]{"c2.android.avc.encoder", "OMX.google.h264.encoder", null};
+        }
+        for (String name : fallbacks) {
+            if (name != null && name.isEmpty()) {
+                continue;
+            }
+            try {
+                MediaCodec codec;
+                if (name == null) {
+                    Ln.i("Using video codec mime: " + mimeType);
+                    codec = MediaCodec.createEncoderByType(mimeType);
+                } else {
+                    Ln.i("Trying video encoder: " + name);
+                    codec = MediaCodec.createByCodecName(name);
+                }
+                Ln.i("Video encoder ready: " + codec.getName());
+                return codec;
+            } catch (Exception e) {
+                Ln.e("Encoder candidate failed: " + name, e);
+                last = e;
+            }
+        }
+        if (last instanceof IOException) {
+            throw (IOException) last;
+        }
+        throw new IOException("No video encoder available for " + mimeType, last);
+    }
+
+    private MediaFormat createFormat(int bitRate, int frameRate, int iFrameInterval) {
         MediaFormat format = new MediaFormat();
-        format.setString(MediaFormat.KEY_MIME, "video/avc");
+        format.setString(MediaFormat.KEY_MIME, mimeType);
         format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
         format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, iFrameInterval);
-
-        // display the very first frame, and recover from bad quality when no new frames
-        format.setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, MICROSECONDS_IN_ONE_SECOND * REPEAT_FRAME_DELAY / frameRate); // µs
+        format.setInteger("max-bframes", 0);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            format.setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            format.setInteger(MediaFormat.KEY_PRIORITY, 0);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            format.setInteger(MediaFormat.KEY_LATENCY, 1);
+        }
+        format.setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 100_000);
         return format;
     }
 
-    private static IBinder createDisplay() {
+    private static IBinder createDisplay() throws Exception {
         // Since Android 12 (preview), secure displays could not be created with shell permissions anymore.
         // On Android 12 preview, SDK_INT is still R (not S), but CODENAME is "S".
         boolean secure = Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && !"S".equals(
@@ -137,8 +205,13 @@ public class ScreenEncoder implements Device.RotationListener {
 
     public void streamScreen(Options options, Device device, OutputStream outputStream) throws IOException {
         // Log.d("ScreenCapture", buildDisplayListMessage());
-        int[] buf = new int[]{device.getScreenInfo().getDeviceSize().getWidth(), device.getScreenInfo().getDeviceSize().getHeight()};
-        final byte[] array = new byte[buf.length * 4];   // https://stackoverflow.com/questions/2183240/java-integer-to-byte-array
+        Size deviceSize = device.getScreenInfo().getDeviceSize();
+        Size videoSize = device.getScreenInfo().getVideoSize();
+        int[] buf = new int[]{
+                deviceSize.getWidth(), deviceSize.getHeight(),
+                videoSize.getWidth(), videoSize.getHeight()
+        };
+        final byte[] array = new byte[buf.length * 4];
         for (int j = 0; j < buf.length; j++) {
             final int c = buf[j];
             array[j * 4] = (byte) ((c & 0xFF000000) >> 24);
@@ -146,7 +219,11 @@ public class ScreenEncoder implements Device.RotationListener {
             array[j * 4 + 2] = (byte) ((c & 0xFF00) >> 8);
             array[j * 4 + 3] = (byte) (c & 0xFF);
         }
-        outputStream.write(array, 0, array.length);   // Sending device resolution
+        outputStream.write(array, 0, array.length);
+        outputStream.flush();
+        Ln.i("Sent device resolution " + buf[0] + "x" + buf[1]
+                + " video=" + buf[2] + "x" + buf[3]
+                + " mime=" + mimeType + " encoder=" + (encoderName.isEmpty() ? "default" : encoderName));
 
         if(options.isEnableAudioForward()){
             startAudioCapture(outputStream);  // start audio capture
@@ -159,7 +236,7 @@ public class ScreenEncoder implements Device.RotationListener {
         ScreenCapture capture = new ScreenCapture(device);
         try {
             do {
-                MediaCodec codec = createCodec();
+                MediaCodec codec = createCodec(errorCount);
 //                IBinder display = createDisplay();
 //                Rect deviceRect = device.getScreenInfo().getDeviceSize().toRect();
                 Rect videoRect = device.getScreenInfo().getVideoSize().toRect();
@@ -187,9 +264,14 @@ public class ScreenEncoder implements Device.RotationListener {
                     alive = true;
                 } finally {
                     Log.d("ScreenCapture", "帧处理 finally 退出了");
-                    codec.stop();
-                    // destroyDisplay(display);
-                    codec.release();
+                    try {
+                        codec.stop();
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        codec.release();
+                    } catch (Exception ignored) {
+                    }
                     if (surface != null) {
                         surface.release();
                     }
@@ -229,9 +311,18 @@ public class ScreenEncoder implements Device.RotationListener {
         @SuppressWarnings("checkstyle:MagicNumber")
 //        byte[] buf = new byte[bitRate / 8]; // may contain up to 1 second of video
         boolean eof = false;
+        int noFrameCount = 0;
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
         while (!consumeRotationChange() && !eof) {
-            int outputBufferId = codec.dequeueOutputBuffer(bufferInfo, -1);
+            int outputBufferId = codec.dequeueOutputBuffer(bufferInfo, 1_000_000);
+            if (outputBufferId == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                noFrameCount++;
+                if (noFrameCount > 8) {
+                    throw new IllegalStateException("Encoder produced no frames");
+                }
+                continue;
+            }
+            noFrameCount = 0;
             eof = (bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
             try {
                 if (consumeRotationChange()) {

@@ -2,6 +2,7 @@ package org.client.scrcpy;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -13,6 +14,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -47,6 +49,7 @@ import org.client.scrcpy.utils.AdbHelper;
 import org.client.scrcpy.utils.PreUtils;
 import org.client.scrcpy.utils.Progress;
 import org.client.scrcpy.utils.ResolutionHelper;
+import org.client.scrcpy.utils.SessionLog;
 import org.client.scrcpy.utils.ThreadUtils;
 import org.client.scrcpy.utils.Util;
 import org.json.JSONArray;
@@ -74,6 +77,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     private SendCommands sendCommands;
     private int videoBitrate;
     private int delayControl;
+    private String videoCodec = Options.CODEC_H264;
+    private String videoEncoder = "";
+    private int videoFrameRate = 60;
     private Context context;
     private String serverAdr = null;
     private SurfaceView surfaceView;
@@ -99,7 +105,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 }
                 scrcpy.start(surface, Scrcpy.LOCAL_IP + ":" + Scrcpy.LOCAL_FORWART_PORT,
                         screenHeight, screenWidth, delayControl,
-                        PreUtils.get(MainActivity.this, Constant.AUDIO_FORWARD, true));
+                        PreUtils.get(MainActivity.this, Constant.AUDIO_FORWARD, true),
+                        videoCodec);
                 ThreadUtils.workPost(() -> {
                     boolean success = AdbHelper.executeWithTimeout(() -> {
                         while (!scrcpy.check_socket_connection()) {
@@ -248,6 +255,11 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         landscape = false;  // 将模式重新置为 竖屏，模式不正确将导致连接黑屏
         setContentView(R.layout.activity_main);
 
+        TextView titleView = findViewById(R.id.app_title);
+        if (titleView != null) {
+            titleView.setText(getString(R.string.app_title) + "  " + BuildConfig.VERSION_NAME + "  r" + BuildConfig.VERSION_CODE);
+        }
+
         // find view by id
         ScrollView scrollView = findViewById(R.id.main_scroll_view);
         Button startButton = findViewById(R.id.button_start);
@@ -258,8 +270,18 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
         startButton.setOnClickListener(v -> {
             getAttributes();
+            SessionLog.i("Start clicked host=" + serverAdr
+                    + " max=" + Math.max(screenHeight, screenWidth)
+                    + " bitrate=" + videoBitrate
+                    + " codec=" + videoCodec
+                    + " encoder=" + videoEncoder
+                    + " fps=" + videoFrameRate);
             connectScrcpyServer(serverAdr);
         });
+        Button shareLogButton = findViewById(R.id.button_share_log);
+        if (shareLogButton != null) {
+            shareLogButton.setOnClickListener(v -> shareSessionLog());
+        }
         btnMoreSettings.setOnClickListener(v -> {
             AutoTransition autoTransition = new AutoTransition();
             TransitionManager.beginDelayedTransition(scrollView, autoTransition);
@@ -320,6 +342,30 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         listPopupWindow.show();
     }
 
+    private void shareSessionLog() {
+        java.io.File logFile = SessionLog.getFile();
+        if (logFile == null || !logFile.exists() || logFile.length() == 0) {
+            Toast.makeText(this, R.string.share_log_empty, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String subject = getString(R.string.share_log_subject, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE);
+        Uri uri = Uri.parse("content://" + getPackageName() + ".log/session.log");
+        Intent send = new Intent(Intent.ACTION_SEND);
+        send.setType("text/plain");
+        send.putExtra(Intent.EXTRA_SUBJECT, subject);
+        // WhatsApp: solo riassunto ~400 caratteri. Il log intero è l'allegato.
+        send.putExtra(Intent.EXTRA_TEXT, SessionLog.readPreview());
+        send.putExtra(Intent.EXTRA_STREAM, uri);
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        send.setClipData(ClipData.newRawUri("scrcpy-session.log", uri));
+        try {
+            startActivity(Intent.createChooser(send, getString(R.string.action_share_log)));
+        } catch (Exception e) {
+            SessionLog.e("Share log failed", e);
+            Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
 
 //    private void showDisplayWindow() {
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -359,8 +405,14 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         audioForwardSwitch.setChecked(PreUtils.get(context, Constant.AUDIO_FORWARD, true));
 
         setSpinner(R.array.options_bitrate_keys, R.id.spinner_video_bitrate, Constant.PREFERENCE_SPINNER_BITRATE);
+        setSpinner(R.array.options_codec_keys, R.id.spinner_video_codec, Constant.PREFERENCE_SPINNER_CODEC);
+        setSpinner(R.array.options_fps_keys, R.id.spinner_video_fps, Constant.PREFERENCE_SPINNER_FPS);
         setSpinner(R.array.options_delay_keys, R.id.delay_control_spinner, Constant.PREFERENCE_SPINNER_DELAY);
         setupResolutionSpinner();
+
+        EditText encoderEdit = findViewById(R.id.editText_video_encoder);
+        encoderEdit.setText(PreUtils.get(context, Constant.PREFERENCE_VIDEO_ENCODER, ""));
+
         if (aSwitch0.isChecked()) {
             aSwitch1.setClickable(false);
             aSwitch1.setTextColor(Color.GRAY);
@@ -402,35 +454,27 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 this_dev_height = this_dev_height - 96;
             }
         }
-        int[] rem_res = scrcpy.get_remote_device_resolution();
-        int remote_device_height = rem_res[1];
-        int remote_device_width = rem_res[0];
-        float remote_device_aspect_ratio = (float) remote_device_height / remote_device_width;
-
-        if (!landscape) {                                                            //Portrait
-            float this_device_aspect_ratio = this_dev_height / this_dev_width;
-//            Log.d("fuck", "set_display_nd_touch: "+this_device_aspect_ratio);
-            if (remote_device_aspect_ratio > this_device_aspect_ratio) {
-                //TODO
-                float wantWidth = this_dev_height / remote_device_aspect_ratio;
-                int padding = (int) (this_dev_width - wantWidth) / 2;
-                linearLayout.setPadding(padding, 0, padding, 0);
-            } else if (remote_device_aspect_ratio < this_device_aspect_ratio) {
-                linearLayout.setPadding(0, (int) (((this_device_aspect_ratio - remote_device_aspect_ratio) * this_dev_width)), 0, 0);
+        int[] remote = scrcpy.getOrientedRemoteSize(landscape);
+        int remoteW = remote[0];
+        int remoteH = remote[1];
+        if (remoteW <= 0 || remoteH <= 0 || this_dev_width <= 0 || this_dev_height <= 0) {
+            if (!PreUtils.get(context, Constant.CONTROL_NO, false)) {
+                surfaceView.setOnTouchListener((view, event) ->
+                        scrcpy.touchevent(event, landscape, surfaceView.getWidth(), surfaceView.getHeight()));
             }
-
-        } else {                                                                        //Landscape
-            float this_device_aspect_ratio = this_dev_width / this_dev_height;
-//            Log.d("fuck", "set_display_nd_touch_land: "+this_device_aspect_ratio);
-            if (remote_device_aspect_ratio > this_device_aspect_ratio) {
-                float wantHeight = this_dev_width / remote_device_aspect_ratio;
-                int padding = (int) (this_dev_height - wantHeight) / 2;
-                linearLayout.setPadding(0, padding, 0, padding);
-            } else if (remote_device_aspect_ratio < this_device_aspect_ratio) {
-                linearLayout.setPadding(((int) (((this_device_aspect_ratio - remote_device_aspect_ratio) * this_dev_height)) / 2), 0, ((int) (((this_device_aspect_ratio - remote_device_aspect_ratio) * this_dev_height)) / 2), 0);
-            }
-
+            return;
         }
+
+        float scale = Math.min(this_dev_width / remoteW, this_dev_height / remoteH);
+        int contentW = Math.round(remoteW * scale);
+        int contentH = Math.round(remoteH * scale);
+        int padH = Math.max(0, ((int) this_dev_width - contentW) / 2);
+        int padV = Math.max(0, ((int) this_dev_height - contentH) / 2);
+        linearLayout.setPadding(padH, padV, padH, padV);
+        Log.i("Scrcpy", "Fit remote " + remoteW + "x" + remoteH
+                + " into " + (int) this_dev_width + "x" + (int) this_dev_height
+                + " content=" + contentW + "x" + contentH
+                + " pad=" + padH + "," + padV);
         if (!PreUtils.get(context, Constant.CONTROL_NO, false)) {
             // Log.i("Screen", "setOnTouchListener: " + surfaceView.getWidth() + "x" + surfaceView.getHeight());
             surfaceView.setOnTouchListener((view, event) -> scrcpy.touchevent(event, landscape, surfaceView.getWidth(), surfaceView.getHeight()));
@@ -590,7 +634,10 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         }
         final Spinner videoResolutionSpinner = findViewById(R.id.spinner_video_resolution);
         final Spinner videoBitrateSpinner = findViewById(R.id.spinner_video_bitrate);
+        final Spinner videoCodecSpinner = findViewById(R.id.spinner_video_codec);
+        final Spinner videoFpsSpinner = findViewById(R.id.spinner_video_fps);
         final Spinner delayControlSpinner = findViewById(R.id.delay_control_spinner);
+        final EditText encoderEdit = findViewById(R.id.editText_video_encoder);
 
         Switch a_Switch0 = findViewById(R.id.switch0);
         Switch a_Switch1 = findViewById(R.id.switch1);
@@ -599,15 +646,28 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         PreUtils.put(context, Constant.CONTROL_NAV, a_Switch1.isChecked());
         PreUtils.put(context, Constant.AUDIO_FORWARD, audioEnableSwitch.isChecked());
 
-        final String[] videoResolutions = getResources().getStringArray(R.array.options_resolution_values)[videoResolutionSpinner.getSelectedItemPosition()].split("x");
-        autoResolutionEnabled = videoResolutionSpinner.getSelectedItemPosition() == Constant.RESOLUTION_AUTO_INDEX;
+        String resolutionValue = getResources().getStringArray(R.array.options_resolution_values)[videoResolutionSpinner.getSelectedItemPosition()];
+        autoResolutionEnabled = videoResolutionSpinner.getSelectedItemPosition() == Constant.RESOLUTION_AUTO_INDEX
+                || "0".equals(resolutionValue) || "auto".equalsIgnoreCase(resolutionValue);
         resolutionLimitSource = null;
-        if (!autoResolutionEnabled) {
+        if (autoResolutionEnabled) {
+            screenHeight = 0;
+            screenWidth = 0;
+        } else if (resolutionValue.contains("x")) {
+            final String[] videoResolutions = resolutionValue.split("x");
             screenHeight = Integer.parseInt(videoResolutions[0]);
             screenWidth = Integer.parseInt(videoResolutions[1]);
+        } else {
+            int maxSize = Integer.parseInt(resolutionValue);
+            screenHeight = maxSize;
+            screenWidth = maxSize;
         }
         videoBitrate = getResources().getIntArray(R.array.options_bitrate_values)[videoBitrateSpinner.getSelectedItemPosition()];
+        videoCodec = getResources().getStringArray(R.array.options_codec_values)[videoCodecSpinner.getSelectedItemPosition()];
+        videoFrameRate = getResources().getIntArray(R.array.options_fps_values)[videoFpsSpinner.getSelectedItemPosition()];
         delayControl = getResources().getIntArray(R.array.options_delay_values)[delayControlSpinner.getSelectedItemPosition()];
+        videoEncoder = encoderEdit.getText() == null ? "" : encoderEdit.getText().toString().trim();
+        PreUtils.put(context, Constant.PREFERENCE_VIDEO_ENCODER, videoEncoder);
     }
 
     private String[] getHistoryList() {
@@ -965,12 +1025,19 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                     final String resolutionMessage = formatResolutionMessage(autoResolution, false);
                     ThreadUtils.post(() -> updateResolutionInfoText(resolutionMessage));
                 }
+                Options options = new Options();
+                options.setIp(Scrcpy.LOCAL_IP);
+                options.setMaxSize(Math.max(screenHeight, screenWidth));
+                options.setBitRate(videoBitrate);
+                options.setTunnelForward(true);
+                options.setEnableAudioForward(PreUtils.get(context, Constant.AUDIO_FORWARD, true));
+                options.setVideoCodec(videoCodec);
+                options.setVideoEncoder(videoEncoder);
+                options.setFrameRate(videoFrameRate);
                 SendCommands.CmdStatus sendStatus = sendCommands.SendAdbCommands(context, serverHost,
                         serverPort,
                         localForwardPort,
-                        Scrcpy.LOCAL_IP,
-                        videoBitrate, Math.max(screenHeight, screenWidth),
-                        PreUtils.get(context, Constant.AUDIO_FORWARD, true));
+                        options);
                 if (sendStatus == SendCommands.CmdStatus.SUCCESS) {
                     ThreadUtils.post(() -> {
                         if (!MainActivity.this.isFinishing()) {

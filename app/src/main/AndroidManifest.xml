@@ -5,6 +5,13 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="true"
@@ -24,6 +31,12 @@
             android:enabled="true"
             android:exported="true" />
         <service android:name=".FloatService" />
+
+        <provider
+            android:name=".LogFileProvider"
+            android:authorities="${applicationId}.log"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 
 </manifest>

@@ -1,13 +1,21 @@
 <resources>
     <string name="app_name">Scrcpy for Android</string>
     <string name="app_subtitle">Mirror and control remote devices</string>
+    <string name="app_title">Scrcpy For Android</string>
 
-    <string name="label_server_ip">Remote Device IP address, For example: 192.168.0.73</string>
-    <string name="label_video_resolution">Resolution</string>
+    <string name="label_server_ip">Remote Device IP (es. 192.168.1.4 oppure 192.168.1.4:5555)</string>
+    <string name="label_video_resolution">Max size / risoluzione</string>
     <string name="delay_control">Delay Control</string>
-    <string name="label_video_bitrate">Bitrate</string>
+    <string name="label_video_bitrate">Bitrate (-b)</string>
+    <string name="label_video_codec">Video codec</string>
+    <string name="label_video_fps">Max FPS</string>
+    <string name="label_video_encoder">Video encoder (opzionale)</string>
+    <string name="hint_video_encoder">es. c2.android.avc.encoder (vuoto = default)</string>
     <string name="label_x">x</string>
     <string name="action_start">Start</string>
+    <string name="action_share_log">Invia log (email / WhatsApp / …)</string>
+    <string name="share_log_subject">Scrcpy log %1$s r%2$d</string>
+    <string name="share_log_empty">Log vuoto</string>
     <string name="appswitch_button">=</string>
     <string name="home_button">o</string>
     <string name="back_button">\u003C</string>
@@ -38,13 +46,31 @@
     <string name="resolution_auto_stream_local">Streaming %1$dx%2$d (local display limit)</string>
     <string name="resolution_auto_stream_remote">Streaming %1$dx%2$d (remote device limit)</string>
 
-    <string-array name="options_resolution_values">
-        <item>Auto</item>
-        <item>1600x720</item>
+    <!-- 0 = Auto (risoluzione adattata al device remoto) -->
+    <string-array name="options_resolution_keys">
+        <item>Auto (nativo)</item>
+        <item>1920 (lato lungo)</item>
+        <item>1600</item>
+        <item>1280</item>
+        <item>1024</item>
+        <item>960</item>
+        <item>800</item>
+        <item>640</item>
+        <item>1920x1080</item>
         <item>1280x720</item>
-        <item>1200x540</item>
-        <item>960x720</item>
-        <item>800x448</item>
+        <item>640x360</item>
+    </string-array>
+    <string-array name="options_resolution_values">
+        <item>0</item>
+        <item>1920</item>
+        <item>1600</item>
+        <item>1280</item>
+        <item>1024</item>
+        <item>960</item>
+        <item>800</item>
+        <item>640</item>
+        <item>1920x1080</item>
+        <item>1280x720</item>
         <item>640x360</item>
     </string-array>
 
@@ -61,19 +87,43 @@
     </integer-array>
 
     <string-array name="options_bitrate_keys">
+        <item>8 Mbps</item>
         <item>6 Mbps</item>
         <item>4 Mbps</item>
         <item>2 Mbps</item>
         <item>1 Mbps</item>
+        <item>512 Kbps</item>
     </string-array>
 
     <integer-array name="options_bitrate_values">
+        <item>8388608</item>
         <item>6144000</item>
         <item>4096000</item>
         <item>2048000</item>
         <item>1024000</item>
+        <item>524288</item>
+    </integer-array>
+
+    <string-array name="options_codec_keys">
+        <item>H.264 (avc)</item>
+        <item>H.265 (hevc)</item>
+    </string-array>
+
+    <string-array name="options_codec_values">
+        <item>h264</item>
+        <item>h265</item>
+    </string-array>
+
+    <string-array name="options_fps_keys">
+        <item>60 fps</item>
+        <item>30 fps</item>
+        <item>15 fps</item>
+    </string-array>
+
+    <integer-array name="options_fps_values">
+        <item>60</item>
+        <item>30</item>
+        <item>15</item>
     </integer-array>
 
 </resources>
-
-

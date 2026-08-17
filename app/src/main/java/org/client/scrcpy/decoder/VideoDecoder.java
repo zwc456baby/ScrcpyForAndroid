@@ -3,6 +3,7 @@ package org.client.scrcpy.decoder;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.os.Build;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Surface;
 
@@ -24,8 +25,12 @@ public class VideoDecoder {
     }
 
     public void configure(Surface surface, int width, int height, ByteBuffer csd0, ByteBuffer csd1) {
+        configure(surface, width, height, csd0, csd1, "video/avc");
+    }
+
+    public void configure(Surface surface, int width, int height, ByteBuffer csd0, ByteBuffer csd1, String mimeType) {
         if (mWorker != null) {
-            mWorker.configure(surface, width, height, csd0, csd1);
+            mWorker.configure(surface, width, height, csd0, csd1, mimeType);
         }
     }
 
@@ -60,7 +65,7 @@ public class VideoDecoder {
             mIsRunning.set(isRunning);
         }
 
-        private void configure(Surface surface, int width, int height, ByteBuffer csd0, ByteBuffer csd1) {
+        private void configure(Surface surface, int width, int height, ByteBuffer csd0, ByteBuffer csd1, String mimeType) {
             if (surface == null) {
                 Log.e(TAG, "VideoDecoder configure skipped: surface is null");
                 return;
@@ -72,17 +77,33 @@ public class VideoDecoder {
             if (mIsConfigured.get()) {
                 mIsConfigured.set(false);
                 if (mCodec != null) {
-                    mCodec.stop();
+                    try {
+                        mCodec.stop();
+                    } catch (IllegalStateException ignore) {
+                    }
+                    try {
+                        mCodec.release();
+                    } catch (IllegalStateException ignore) {
+                    }
+                    mCodec = null;
                 }
 
             }
-            MediaFormat format = MediaFormat.createVideoFormat("video/avc", width, height);
-            format.setByteBuffer("csd-0", csd0);
-            format.setByteBuffer("csd-1", csd1);
+            String mime = TextUtils.isEmpty(mimeType) ? "video/avc" : mimeType;
+            int safeW = Math.max(width, 16);
+            int safeH = Math.max(height, 16);
+            MediaFormat format = MediaFormat.createVideoFormat(mime, safeW, safeH);
+            if (csd0 != null) {
+                format.setByteBuffer("csd-0", csd0);
+            }
+            // H.264 uses SPS/PPS; HEVC prefers a single csd-0 with VPS/SPS/PPS
+            if (csd1 != null && "video/avc".equals(mime)) {
+                format.setByteBuffer("csd-1", csd1);
+            }
             try {
-                mCodec = MediaCodec.createDecoderByType("video/avc");
+                mCodec = MediaCodec.createDecoderByType(mime);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to create codec", e);
+                throw new RuntimeException("Failed to create codec for " + mime, e);
             }
             mCodec.configure(format, surface, null, 0);
             mCodec.start();

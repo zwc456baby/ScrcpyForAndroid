@@ -104,6 +104,18 @@ public class VideoPacket extends MediaPacket<VideoPacket> {
     }
 
     public static StreamSettings getStreamSettings(byte[] buffer) {
+        return getStreamSettings(buffer, false);
+    }
+
+    public static StreamSettings getStreamSettings(byte[] buffer, boolean hevc) {
+        StreamSettings streamSettings = new StreamSettings();
+        if (hevc) {
+            // HEVC MediaCodec expects VPS/SPS/PPS together in csd-0
+            streamSettings.sps = ByteBuffer.wrap(buffer);
+            streamSettings.pps = null;
+            return streamSettings;
+        }
+
         byte[] sps, pps;
 
         ByteBuffer spsPpsBuffer = ByteBuffer.wrap(buffer);
@@ -123,15 +135,8 @@ public class VideoPacket extends MediaPacket<VideoPacket> {
         pps = new byte[buffer.length - ppsIndex];
         System.arraycopy(buffer, ppsIndex, pps, 0, pps.length);
 
-        // sps buffer
-        ByteBuffer spsBuffer = ByteBuffer.wrap(sps, 0, sps.length);
-
-        // pps buffer
-        ByteBuffer ppsBuffer = ByteBuffer.wrap(pps, 0, pps.length);
-
-        StreamSettings streamSettings = new StreamSettings();
-        streamSettings.sps = spsBuffer;
-        streamSettings.pps = ppsBuffer;
+        streamSettings.sps = ByteBuffer.wrap(sps, 0, sps.length);
+        streamSettings.pps = ByteBuffer.wrap(pps, 0, pps.length);
 
         return streamSettings;
     }

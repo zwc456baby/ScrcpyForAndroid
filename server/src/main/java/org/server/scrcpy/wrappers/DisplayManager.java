@@ -100,7 +100,12 @@ public final class DisplayManager {
             int rotation = cls.getDeclaredField("rotation").getInt(displayInfo);
             int layerStack = cls.getDeclaredField("layerStack").getInt(displayInfo);
             int flags = cls.getDeclaredField("flags").getInt(displayInfo);
-            return new DisplayInfo(displayId, new Size(width, height), rotation, layerStack, flags);
+            int densityDpi = 160;
+            try {
+                densityDpi = cls.getDeclaredField("logicalDensityDpi").getInt(displayInfo);
+            } catch (Exception ignored) {
+            }
+            return new DisplayInfo(displayId, new Size(width, height), rotation, layerStack, flags, densityDpi);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
         }
@@ -124,5 +129,24 @@ public final class DisplayManager {
     public VirtualDisplay createVirtualDisplay(String name, int width, int height, int displayIdToMirror, Surface surface) throws Exception {
         Method method = getCreateVirtualDisplayMethod();
         return (VirtualDisplay) method.invoke(null, name, width, height, displayIdToMirror, surface);
+    }
+
+    public VirtualDisplay createNewVirtualDisplay(String name, int width, int height, int dpi, Surface surface, int flags) throws Exception {
+        java.lang.reflect.Constructor<android.hardware.display.DisplayManager> ctor =
+                android.hardware.display.DisplayManager.class.getDeclaredConstructor(android.content.Context.class);
+        ctor.setAccessible(true);
+        android.hardware.display.DisplayManager dm = ctor.newInstance(org.server.scrcpy.util.FakeContext.get());
+        return dm.createVirtualDisplay(name, width, height, dpi, surface, flags);
+    }
+
+    public VirtualDisplay createMirrorVirtualDisplay(String name, int width, int height, int dpi, Surface surface) throws Exception {
+        int density = dpi > 0 ? dpi : 160;
+        Ln.i("Creating AUTO_MIRROR VirtualDisplay dpi=" + density + " " + width + "x" + height);
+        try {
+            return createNewVirtualDisplay(name, width, height, density, surface, 0x00000010);
+        } catch (Exception e) {
+            Ln.e("AUTO_MIRROR VirtualDisplay failed, trying PUBLIC|AUTO_MIRROR", e);
+            return createNewVirtualDisplay(name, width, height, density, surface, 0x00000001 | 0x00000010);
+        }
     }
 }

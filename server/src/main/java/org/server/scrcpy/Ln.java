@@ -24,6 +24,7 @@ public final class Ln {
         if (isEnabled(Level.DEBUG)) {
             Log.d(TAG, message);
             System.out.println("DEBUG: " + message);
+            System.out.flush();
         }
     }
 
@@ -31,6 +32,7 @@ public final class Ln {
         if (isEnabled(Level.INFO)) {
             Log.i(TAG, message);
             System.out.println("INFO: " + message);
+            System.out.flush();
         }
     }
 
@@ -38,6 +40,7 @@ public final class Ln {
         if (isEnabled(Level.WARN)) {
             Log.w(TAG, message);
             System.out.println("WARN: " + message);
+            System.out.flush();
         }
     }
 
@@ -46,6 +49,8 @@ public final class Ln {
             Log.e(TAG, message, throwable);
             System.out.println("ERROR: " + message);
             throwable.printStackTrace();
+            System.out.flush();
+            System.err.flush();
         }
     }
 
@@ -53,6 +58,7 @@ public final class Ln {
         if (isEnabled(Level.ERROR)) {
             Log.e(TAG, message);
             System.out.println("ERROR: " + message);
+            System.out.flush();
         }
     }
 

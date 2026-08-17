@@ -152,7 +152,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginLeft="20dp"
                     android:layout_marginRight="20dp"
-                    android:entries="@array/options_resolution_values"
+                    android:entries="@array/options_resolution_keys"
                     android:minHeight="48dp"
                     android:textColor="@color/white"
                     tools:ignore="DuplicateSpeakableTextCheck" />
@@ -216,6 +216,70 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:text="@string/label_video_codec"
+                    android:textAppearance="@android:style/TextAppearance"
+                    android:textColor="@color/white"
+                    android:textSize="16sp" />
+
+                <Spinner
+                    android:id="@+id/spinner_video_codec"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"
+                    android:layout_marginRight="20dp"
+                    android:entries="@array/options_codec_keys"
+                    android:minHeight="48dp"
+                    android:textColor="@color/white" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginRight="10dp"
+                android:background="@color/btn_color_nomal"
+                android:orientation="vertical"
+                android:paddingLeft="10dp"
+                android:paddingTop="5dp"
+                android:paddingRight="10dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_video_fps"
+                    android:textAppearance="@android:style/TextAppearance"
+                    android:textColor="@color/white"
+                    android:textSize="16sp" />
+
+                <Spinner
+                    android:id="@+id/spinner_video_fps"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"
+                    android:layout_marginRight="20dp"
+                    android:entries="@array/options_fps_keys"
+                    android:minHeight="48dp"
+                    android:textColor="@color/white" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginRight="10dp"
+                android:background="@color/btn_color_nomal"
+                android:orientation="vertical"
+                android:paddingLeft="10dp"
+                android:paddingTop="5dp"
+                android:paddingRight="10dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
                     android:text="@string/delay_control"
                     android:textAppearance="@android:style/TextAppearance"
                     android:textColor="@color/white"
@@ -250,7 +314,7 @@
                 android:textColor="@color/white"
                 android:textSize="15sp" />
 
-            <!-- 包含三个Switch的分组容器，默认隐藏 -->
+            <!-- 包含 tre Switch + encoder -->
             <LinearLayout
                 android:id="@+id/layout_more_settings"
                 android:layout_width="match_parent"
@@ -260,6 +324,45 @@
                 android:layout_marginLeft="10dp"
                 android:layout_marginRight="10dp"
                 tools:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginRight="10dp"
+                    android:background="@color/btn_color_nomal"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="10dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_video_encoder"
+                        android:textAppearance="@android:style/TextAppearance"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
+
+                    <EditText
+                        android:id="@+id/editText_video_encoder"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:background="@drawable/edit_background"
+                        android:gravity="center"
+                        android:hint="@string/hint_video_encoder"
+                        android:importantForAutofill="no"
+                        android:inputType="text"
+                        android:minHeight="48dp"
+                        android:paddingLeft="8dp"
+                        android:paddingRight="8dp"
+                        android:textColor="@color/white"
+                        android:textColorHint="#A8AAB5"
+                        android:textSize="13sp" />
+                </LinearLayout>
 
                 <Switch
                     android:id="@+id/switch0"
@@ -315,12 +418,23 @@
                 android:layout_marginLeft="10dp"
                 android:layout_marginTop="10dp"
                 android:layout_marginRight="10dp"
-                android:layout_marginBottom="20dp"
-                android:layout_weight="1"
                 android:background="@drawable/btn_selector"
                 android:text="@string/action_start"
                 android:textColor="@color/white"
                 android:textSize="16sp" />
+
+            <Button
+                android:id="@+id/button_share_log"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginBottom="20dp"
+                android:background="@drawable/btn_selector"
+                android:text="@string/action_share_log"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

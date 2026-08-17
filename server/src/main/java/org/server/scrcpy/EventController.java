@@ -69,7 +69,8 @@ public class EventController {
 
             MotionEvent.PointerCoords coords = new MotionEvent.PointerCoords();
             coords.orientation = 0;
-            coords.size = 0;
+            coords.size = 1f;
+            coords.pressure = 1f;
 
             pointerProperties[i] = props;
             pointerCoords[i] = coords;
@@ -90,12 +91,10 @@ public class EventController {
         int[] buffer = controlByteToIntArray(buf);
 
         long now = SystemClock.uptimeMillis();
-        if (buffer.length == 1) {
-            injectKeycode(buffer[0]);
-        } else if (buffer[2] == 0 && buffer[3] == 0) {
-            if (buffer[0] == 28) {
+        if (buffer.length == 1 || (buffer.length < 5 && buffer.length >= 4 && buffer[2] == 0 && buffer[3] == 0)) {
+            if (buffer.length >= 4 && buffer[0] == 28) {
                 proximity = true;           // Proximity event
-            } else if (buffer[0] == 29) {
+            } else if (buffer.length >= 4 && buffer[0] == 29) {
                 proximity = false;
             } else {
                 injectKeycode(buffer[0]);
@@ -130,10 +129,14 @@ public class EventController {
 //                        MotionEvent event = MotionEvent.obtain(lastMouseDown, now, action, 1, pointerProperties, pointerCoords, 0, button, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0);
 //                        injectEvent(event);
 
-                // 为支持多点触控，新增 buffer[4] 这个字节
                 Point point = new Point(buffer[2], buffer[3]);
                 Point newpoint = device.NewgetPhysicalPoint(point);
-                injectTouch(action, buffer[4], newpoint, buffer[1]);
+                int pointerId = buffer.length >= 5 ? buffer[4] : 0;
+                if (action == MotionEvent.ACTION_DOWN) {
+                    Ln.i("inject touch DOWN " + newpoint.getX() + "," + newpoint.getY()
+                            + " displayId=" + device.getDisplayId());
+                }
+                injectTouch(action, pointerId, newpoint, buffer[1]);
             }
         }
     }
