@@ -24,6 +24,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -77,7 +78,6 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     private SurfaceView surfaceView;
     private Surface surface;
     private SurfaceHolder.Callback surfaceCallback;
-    private boolean scrcpyServiceStarted = false;
     private Scrcpy scrcpy;
     private long timestamp = 0;
 
@@ -154,7 +154,6 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             surfaceView.getHolder().removeCallback(surfaceCallback);
             surfaceView = null;
         }
-        scrcpyServiceStarted = false;
         surfaceCallback = null;
         if (surface != null) {
             surface = null;
@@ -183,12 +182,11 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             screenHeight = savedInstanceState.getInt("screenHeight");
             screenWidth = savedInstanceState.getInt("screenWidth");
         }
-        // 读取屏幕是横屏、还是竖屏
-        landscape = getApplication().getResources().getConfiguration().orientation
-                != Configuration.ORIENTATION_PORTRAIT;
         if (first_time) {
             scrcpy_main();
         } else {
+            landscape = getResources().getConfiguration().orientation
+                    != Configuration.ORIENTATION_PORTRAIT;
             Log.e("Scrcpy: ", "from onCreate");
             start_screen_copy_magic();
         }
@@ -557,6 +555,119 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         screenWidth = temp;
     }
 
+    private void syncLandscapeFromConfiguration() {
+        landscape = getResources().getConfiguration().orientation
+                != Configuration.ORIENTATION_PORTRAIT;
+    }
+
+    private void applyMirrorImmersiveMode() {
+        final View decorView = getWindow().getDecorView();
+        decorView.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+    }
+
+    private void refreshMirrorLayout() {
+        if (linearLayout == null || scrcpy == null) {
+            return;
+        }
+        linearLayout.setPadding(0, 0, 0, 0);
+        linearLayout.post(() -> {
+            if (serviceBound && scrcpy != null) {
+                set_display_nd_touch();
+                if (surfaceView != null) {
+                    Surface currentSurface = surfaceView.getHolder().getSurface();
+                    if (isSurfaceReady(currentSurface)) {
+                        surface = currentSurface;
+                        scrcpy.setParms(surface, screenWidth, screenHeight);
+                    }
+                }
+            }
+        });
+    }
+
+    private void setMirrorContentView() {
+        Configuration overrideConfig = new Configuration(getResources().getConfiguration());
+        overrideConfig.orientation = landscape
+                ? Configuration.ORIENTATION_LANDSCAPE
+                : Configuration.ORIENTATION_PORTRAIT;
+        View root = LayoutInflater.from(createConfigurationContext(overrideConfig))
+                .inflate(R.layout.surface, null);
+        setContentView(root);
+    }
+
+    private void setupNavBar() {
+        final LinearLayout nav_bar = findViewById(R.id.nav_button_bar);
+        if (nav_bar == null) {
+            return;
+        }
+        if (PreUtils.get(context, Constant.CONTROL_NAV, false) &&
+                !PreUtils.get(context, Constant.CONTROL_NO, false)) {
+            nav_bar.setVisibility(LinearLayout.VISIBLE);
+        } else {
+            nav_bar.setVisibility(LinearLayout.GONE);
+        }
+    }
+
+    private void bindMirrorSurfaceHolder() {
+        surfaceView = findViewById(R.id.decoder_surface);
+        if (surfaceView == null) {
+            return;
+        }
+        if (surfaceCallback != null) {
+            surfaceView.getHolder().removeCallback(surfaceCallback);
+        }
+        surfaceCallback = new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                surface = holder.getSurface();
+                if (!serviceBound) {
+                    start_Scrcpy_service();
+                } else if (scrcpy != null && isSurfaceReady(surface)) {
+                    scrcpy.setParms(surface, screenWidth, screenHeight);
+                    refreshMirrorLayout();
+                }
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                surface = holder.getSurface();
+                if (serviceBound && scrcpy != null && isSurfaceReady(surface)) {
+                    scrcpy.setParms(surface, screenWidth, screenHeight);
+                    refreshMirrorLayout();
+                }
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+                surface = null;
+            }
+        };
+        surfaceView.getHolder().addCallback(surfaceCallback);
+    }
+
+    private void setupMirrorContentView() {
+        syncLandscapeFromConfiguration();
+        setMirrorContentView();
+        applyMirrorImmersiveMode();
+        bindMirrorSurfaceHolder();
+        setupNavBar();
+        linearLayout = findViewById(R.id.container1);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (!first_time && serviceBound) {
+            result_of_Rotation = true;
+            setupMirrorContentView();
+        }
+    }
+
     private boolean isSurfaceReady(Surface displaySurface) {
         if (displaySurface == null) {
             return false;
@@ -569,50 +680,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
     @SuppressLint("ClickableViewAccessibility")
     private void start_screen_copy_magic() {
-        setContentView(R.layout.surface);
-        final View decorView = getWindow().getDecorView();
-        decorView.setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-        surfaceView = findViewById(R.id.decoder_surface);
-        scrcpyServiceStarted = false;
-        surfaceCallback = new SurfaceHolder.Callback() {
-            @Override
-            public void surfaceCreated(SurfaceHolder holder) {
-                surface = holder.getSurface();
-                if (!scrcpyServiceStarted) {
-                    scrcpyServiceStarted = true;
-                    start_Scrcpy_service();
-                }
-            }
-
-            @Override
-            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-                surface = holder.getSurface();
-                if (serviceBound && scrcpy != null && isSurfaceReady(surface)) {
-                    scrcpy.setParms(surface, screenWidth, screenHeight);
-                }
-            }
-
-            @Override
-            public void surfaceDestroyed(SurfaceHolder holder) {
-                surface = null;
-            }
-        };
-        surfaceView.getHolder().addCallback(surfaceCallback);
-        final LinearLayout nav_bar = findViewById(R.id.nav_button_bar);
-        if (PreUtils.get(context, Constant.CONTROL_NAV, false) &&
-                !PreUtils.get(context, Constant.CONTROL_NO, false)) {
-            nav_bar.setVisibility(LinearLayout.VISIBLE);
-        } else {
-            nav_bar.setVisibility(LinearLayout.GONE);
-        }
-        linearLayout = findViewById(R.id.container1);
-        start_Scrcpy_service();
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
+        setupMirrorContentView();
     }
 
     private void start_Scrcpy_service() {
@@ -624,24 +693,19 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     @SuppressLint("SourceLockedOrientationActivity")
     @Override
     public void loadNewRotation() {
-        if (first_time) {
-            first_time = false;
-        }
-        try {
-            // 可能会导致重复解绑，所以捕获异常
-            unbindService(serviceConnection);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        serviceBound = false;
-        result_of_Rotation = true;
-        landscape = !landscape;
-        swapDimensions();
-        if (landscape) {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-        } else {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
-        }
+        ThreadUtils.post(() -> {
+            if (first_time) {
+                first_time = false;
+            }
+            result_of_Rotation = true;
+            landscape = !landscape;
+            swapDimensions();
+            if (landscape) {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            } else {
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+            }
+        });
     }
 
     @Override
@@ -662,8 +726,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     @Override
     protected void onStop() {
         super.onStop();
-        if (resumeScrcpy) {
-            // 返回到主页面，属于用户主动断开场景
+        if (resumeScrcpy && !isChangingConfigurations()) {
+            // 返回到主页面，属于用户主动断开场景（旋转屏幕时不断开）
             showMainView(true);
             first_time = true;
         }
