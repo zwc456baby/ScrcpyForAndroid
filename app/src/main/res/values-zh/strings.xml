@@ -27,6 +27,15 @@
 
     <string name="more_settings">更多设置 ▼</string>
     <string name="collapse_settings">收起设置 ▲</string>
+
+    <string name="resolution_auto">自动</string>
+    <string name="resolution_auto_need_ip">输入远程 IP 以检测分辨率</string>
+    <string name="resolution_auto_detecting">正在检测最佳分辨率…</string>
+    <string name="resolution_auto_failed">无法检测远程分辨率</string>
+    <string name="resolution_auto_local">%1$dx%2$d — 受本地屏幕限制</string>
+    <string name="resolution_auto_remote">%1$dx%2$d — 受远程设备限制</string>
+    <string name="resolution_auto_stream_local">正在传输 %1$dx%2$d（本地屏幕限制）</string>
+    <string name="resolution_auto_stream_remote">正在传输 %1$dx%2$d（远程设备限制）</string>
 </resources>
 
 

@@ -22,10 +22,19 @@
   <string name="disconnect_ask">接続が切断されたことを検出しました。終了して再接続してください。</string>
   <string name="need_register">登録が必要です</string>
     <string name="more_settings">详细设置 ▼</string>
-    <string name="collapse_settings">闭じる ▲</string>
+    <string name="collapse_settings">Collapse Settings ▲</string>
+
+    <string name="resolution_auto">自動</string>
+    <string name="resolution_auto_need_ip">リモート IP を入力して解像度を検出</string>
+    <string name="resolution_auto_detecting">最適な解像度を検出中…</string>
+    <string name="resolution_auto_failed">リモート解像度を検出できませんでした</string>
+    <string name="resolution_auto_local">%1$dx%2$d — ローカル画面で制限</string>
+    <string name="resolution_auto_remote">%1$dx%2$d — リモートデバイスで制限</string>
+    <string name="resolution_auto_stream_local">ストリーム %1$dx%2$d（ローカル画面制限）</string>
+    <string name="resolution_auto_stream_remote">ストリーム %1$dx%2$d（リモートデバイス制限）</string>
 
   <string-array name="options_resolution_values">
-    <item>1920x1080</item>
+    <item>自動</item>
     <item>1600x720</item>
     <item>1280x720</item>
     <item>1200x540</item>

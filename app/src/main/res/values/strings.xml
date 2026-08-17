@@ -29,8 +29,17 @@
     <string name="more_settings">More Settings ▼</string>
     <string name="collapse_settings">Collapse Settings ▲</string>
 
+    <string name="resolution_auto">Auto</string>
+    <string name="resolution_auto_need_ip">Enter remote IP to detect resolution</string>
+    <string name="resolution_auto_detecting">Detecting optimal resolution…</string>
+    <string name="resolution_auto_failed">Could not detect remote resolution</string>
+    <string name="resolution_auto_local">%1$dx%2$d — limited by local display</string>
+    <string name="resolution_auto_remote">%1$dx%2$d — limited by remote device</string>
+    <string name="resolution_auto_stream_local">Streaming %1$dx%2$d (local display limit)</string>
+    <string name="resolution_auto_stream_remote">Streaming %1$dx%2$d (remote device limit)</string>
+
     <string-array name="options_resolution_values">
-        <item>1920x1080</item>
+        <item>Auto</item>
         <item>1600x720</item>
         <item>1280x720</item>
         <item>1200x540</item>

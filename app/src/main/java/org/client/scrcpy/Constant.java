@@ -11,6 +11,9 @@ public class Constant {
     public static final String PREFERENCE_SPINNER_RESOLUTION = "spinner_resolution";
     public static final String PREFERENCE_SPINNER_BITRATE = "spinner_bitrate";
 
+  /** Index of the "Auto" entry in {@code options_resolution_values}. */
+    public static final int RESOLUTION_AUTO_INDEX = 0;
+
     public static final String PREFERENCE_SPINNER_DELAY = "delay_control";
 
     public static final String HISTORY_LIST_KEY = "history_list_key";

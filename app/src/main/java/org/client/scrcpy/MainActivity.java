@@ -46,6 +46,7 @@ import android.widget.Toast;
 import org.client.scrcpy.utils.AdbHelper;
 import org.client.scrcpy.utils.PreUtils;
 import org.client.scrcpy.utils.Progress;
+import org.client.scrcpy.utils.ResolutionHelper;
 import org.client.scrcpy.utils.ThreadUtils;
 import org.client.scrcpy.utils.Util;
 import org.json.JSONArray;
@@ -82,6 +83,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     private long timestamp = 0;
 
     private LinearLayout linearLayout;
+
+    private boolean autoResolutionEnabled = false;
+    private ResolutionHelper.LimitSource resolutionLimitSource = null;
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -279,6 +283,12 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             showListPopulWindow(editText);
         });
 
+        editText.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                updateResolutionPreview();
+            }
+        });
+
         // 无头模式，实际上要隐藏掉所有控件，否则会被显示出 ip 地址
         if (headlessMode) {
             if (scrollView != null) {
@@ -348,9 +358,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         aSwitch1.setChecked(PreUtils.get(context, Constant.CONTROL_NAV, false));
         audioForwardSwitch.setChecked(PreUtils.get(context, Constant.AUDIO_FORWARD, true));
 
-        setSpinner(R.array.options_resolution_values, R.id.spinner_video_resolution, Constant.PREFERENCE_SPINNER_RESOLUTION);
         setSpinner(R.array.options_bitrate_keys, R.id.spinner_video_bitrate, Constant.PREFERENCE_SPINNER_BITRATE);
         setSpinner(R.array.options_delay_keys, R.id.delay_control_spinner, Constant.PREFERENCE_SPINNER_DELAY);
+        setupResolutionSpinner();
         if (aSwitch0.isChecked()) {
             aSwitch1.setClickable(false);
             aSwitch1.setTextColor(Color.GRAY);
@@ -469,6 +479,105 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         }
     }
 
+    private void setupResolutionSpinner() {
+        final Spinner spinner = findViewById(R.id.spinner_video_resolution);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                PreUtils.put(context, Constant.PREFERENCE_SPINNER_RESOLUTION, position);
+                updateResolutionPreview();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                PreUtils.put(context, Constant.PREFERENCE_SPINNER_RESOLUTION, 0);
+            }
+        });
+        int selection = PreUtils.get(context, Constant.PREFERENCE_SPINNER_RESOLUTION, 0);
+        if (selection < spinner.getCount()) {
+            spinner.setSelection(selection);
+        } else {
+            spinner.setSelection(0);
+        }
+        updateResolutionPreview();
+    }
+
+    private void updateResolutionPreview() {
+        TextView info = findViewById(R.id.text_resolution_info);
+        Spinner spinner = findViewById(R.id.spinner_video_resolution);
+        if (info == null || spinner == null) {
+            return;
+        }
+        if (spinner.getSelectedItemPosition() != Constant.RESOLUTION_AUTO_INDEX) {
+            info.setVisibility(View.GONE);
+            return;
+        }
+        EditText editText = findViewById(R.id.editText_server_host);
+        String remoteAdr = editText != null ? editText.getText().toString().trim() : "";
+        if (TextUtils.isEmpty(remoteAdr)) {
+            info.setText(R.string.resolution_auto_need_ip);
+            info.setVisibility(View.VISIBLE);
+            return;
+        }
+        info.setText(R.string.resolution_auto_detecting);
+        info.setVisibility(View.VISIBLE);
+        ThreadUtils.workPost(() -> {
+            try {
+                ResolutionHelper.AutoResolution autoResolution =
+                        ResolutionHelper.computeAuto(context, remoteAdr);
+                final String message = formatResolutionMessage(autoResolution, false);
+                ThreadUtils.post(() -> {
+                    if (!isFinishing()) {
+                        updateResolutionInfoText(message);
+                    }
+                });
+            } catch (Exception e) {
+                Log.e("Scrcpy", "Resolution preview failed: " + e.getMessage());
+                ThreadUtils.post(() -> {
+                    if (!isFinishing()) {
+                        info.setText(R.string.resolution_auto_failed);
+                        info.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
+        });
+    }
+
+    private void updateResolutionInfoText(String message) {
+        TextView info = findViewById(R.id.text_resolution_info);
+        if (info == null) {
+            return;
+        }
+        if (TextUtils.isEmpty(message)) {
+            info.setVisibility(View.GONE);
+            return;
+        }
+        info.setText(message);
+        info.setVisibility(View.VISIBLE);
+    }
+
+    private String formatResolutionMessage(ResolutionHelper.AutoResolution autoResolution, boolean activeStream) {
+        if (autoResolution.limitSource == ResolutionHelper.LimitSource.LOCAL) {
+            return getString(activeStream ? R.string.resolution_auto_stream_local : R.string.resolution_auto_local,
+                    autoResolution.displayWidth, autoResolution.displayHeight);
+        }
+        return getString(activeStream ? R.string.resolution_auto_stream_remote : R.string.resolution_auto_remote,
+                autoResolution.displayWidth, autoResolution.displayHeight);
+    }
+
+    private String formatActiveStreamResolutionMessage() {
+        return formatResolutionMessage(
+                new ResolutionHelper.AutoResolution(
+                        Math.max(screenWidth, screenHeight),
+                        screenWidth,
+                        screenHeight,
+                        ResolutionHelper.getLocalMaxDimension(context),
+                        screenWidth,
+                        screenHeight,
+                        resolutionLimitSource),
+                true);
+    }
+
     private void getAttributes() {
 
         final EditText editTextServerHost = findViewById(R.id.editText_server_host);
@@ -491,8 +600,12 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         PreUtils.put(context, Constant.AUDIO_FORWARD, audioEnableSwitch.isChecked());
 
         final String[] videoResolutions = getResources().getStringArray(R.array.options_resolution_values)[videoResolutionSpinner.getSelectedItemPosition()].split("x");
-        screenHeight = Integer.parseInt(videoResolutions[0]);
-        screenWidth = Integer.parseInt(videoResolutions[1]);
+        autoResolutionEnabled = videoResolutionSpinner.getSelectedItemPosition() == Constant.RESOLUTION_AUTO_INDEX;
+        resolutionLimitSource = null;
+        if (!autoResolutionEnabled) {
+            screenHeight = Integer.parseInt(videoResolutions[0]);
+            screenWidth = Integer.parseInt(videoResolutions[1]);
+        }
         videoBitrate = getResources().getIntArray(R.array.options_bitrate_values)[videoBitrateSpinner.getSelectedItemPosition()];
         delayControl = getResources().getIntArray(R.array.options_delay_values)[delayControlSpinner.getSelectedItemPosition()];
     }
@@ -843,6 +956,15 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             Progress.showDialog(MainActivity.this, getString(R.string.please_wait));
             ThreadUtils.workPost(() -> {
                 AdbHelper.writeAssetsJarServer(App.mContext);
+                if (autoResolutionEnabled) {
+                    ResolutionHelper.AutoResolution autoResolution =
+                            ResolutionHelper.computeAuto(context, serverAdr);
+                    screenWidth = autoResolution.displayWidth;
+                    screenHeight = autoResolution.displayHeight;
+                    resolutionLimitSource = autoResolution.limitSource;
+                    final String resolutionMessage = formatResolutionMessage(autoResolution, false);
+                    ThreadUtils.post(() -> updateResolutionInfoText(resolutionMessage));
+                }
                 SendCommands.CmdStatus sendStatus = sendCommands.SendAdbCommands(context, serverHost,
                         serverPort,
                         localForwardPort,
@@ -874,6 +996,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
      */
     protected void connectSuccessExt() {
         Dialog.closeDialogs();
+        if (autoResolutionEnabled && resolutionLimitSource != null) {
+            Toast.makeText(context, formatActiveStreamResolutionMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     protected void connectExitExt() {
