@@ -29,7 +29,7 @@ public final class ResolutionHelper {
         public final int remoteHeight;
         public final LimitSource limitSource;
 
-        AutoResolution(int maxSize, int displayWidth, int displayHeight,
+        public AutoResolution(int maxSize, int displayWidth, int displayHeight,
                        int localMax, int remoteWidth, int remoteHeight, LimitSource limitSource) {
             this.maxSize = maxSize;
             this.displayWidth = displayWidth;
