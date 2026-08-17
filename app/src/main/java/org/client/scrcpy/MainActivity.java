@@ -10,6 +10,8 @@ import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -19,7 +21,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
 import android.util.DisplayMetrics;
@@ -92,6 +96,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
     private boolean autoResolutionEnabled = false;
     private ResolutionHelper.LimitSource resolutionLimitSource = null;
+
+    private volatile boolean statusMonitorActive = false;
+    private volatile int statusCheckGeneration = 0;
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -269,6 +276,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         sendCommands = new SendCommands();
 
         startButton.setOnClickListener(v -> {
+            stopStatusMonitor();
             getAttributes();
             SessionLog.i("Start clicked host=" + serverAdr
                     + " max=" + Math.max(screenHeight, screenWidth)
@@ -278,6 +286,10 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                     + " fps=" + videoFrameRate);
             connectScrcpyServer(serverAdr);
         });
+        Button rebootButton = findViewById(R.id.button_reboot);
+        if (rebootButton != null) {
+            rebootButton.setOnClickListener(v -> confirmRebootRemoteDevice());
+        }
         Button shareLogButton = findViewById(R.id.button_share_log);
         if (shareLogButton != null) {
             shareLogButton.setOnClickListener(v -> shareSessionLog());
@@ -310,6 +322,24 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 updateResolutionPreview();
             }
         });
+        editText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (statusMonitorActive) {
+                    scheduleStatusCheck(800);
+                }
+            }
+        });
+
+        startStatusMonitor();
 
         // 无头模式，实际上要隐藏掉所有控件，否则会被显示出 ip 地址
         if (headlessMode) {
@@ -877,6 +907,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
     @SuppressLint("ClickableViewAccessibility")
     private void start_screen_copy_magic() {
+        stopStatusMonitor();
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
         setupMirrorContentView();
     }
@@ -937,6 +968,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     protected void onPause() {
         super.onPause();
         Log.d("Scrcpy", "onPause: " + serviceBound);
+        if (first_time) {
+            stopStatusMonitor();
+        }
         if (serviceBound && scrcpy != null) {
             scrcpy.pause();
             resumeScrcpy = true;
@@ -946,6 +980,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     @Override
     protected void onResume() {
         super.onResume();
+        if (first_time) {
+            startStatusMonitor();
+        }
         if (!first_time && !result_of_Rotation) {
             final View decorView = getWindow().getDecorView();
             decorView.setSystemUiVisibility(
@@ -1020,6 +1057,39 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
     }
 
+    private void confirmRebootRemoteDevice() {
+        getAttributes();
+        if (TextUtils.isEmpty(serverAdr)) {
+            Toast.makeText(context, "Server Address Empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] serverInfo = Util.getServerHostAndPort(serverAdr);
+        String device = serverInfo[0] + ":" + serverInfo[1];
+        Dialog.displayDialog(this,
+                getString(R.string.reboot_title),
+                getString(R.string.reboot_ask, device),
+                () -> rebootRemoteDevice(device),
+                () -> {
+                });
+    }
+
+    private void rebootRemoteDevice(String device) {
+        Progress.showDialog(MainActivity.this, getString(R.string.reboot_wait));
+        ThreadUtils.workPost(() -> {
+            AdbHelper.adbCmd(App.mContext, "connect", device);
+            String result = AdbHelper.adbCmd(App.mContext, "-s", device, "reboot");
+            SessionLog.i("ADB reboot device=" + device + " result=" + result);
+            ThreadUtils.post(() -> {
+                Progress.closeDialog();
+                if (MainActivity.this.isFinishing()) {
+                    return;
+                }
+                Toast.makeText(context, getString(R.string.reboot_sent, device), Toast.LENGTH_SHORT).show();
+                startStatusMonitor();
+            });
+        });
+    }
+
     private void connectScrcpyServer(String serverAdr) {
         if (!TextUtils.isEmpty(serverAdr)) {
             saveHistory(serverAdr);  // 保存到历史记录
@@ -1062,14 +1132,87 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                         }
                     });
                 } else {
-                    ThreadUtils.post(Progress::closeDialog);
-                    Toast.makeText(context, "Network OR ADB connection failed", Toast.LENGTH_SHORT).show();
-                    connectExitExt();
+                    ThreadUtils.post(() -> {
+                        Progress.closeDialog();
+                        Toast.makeText(context, "Network OR ADB connection failed", Toast.LENGTH_SHORT).show();
+                        startStatusMonitor();
+                        connectExitExt();
+                    });
                 }
             });
         } else {
             Toast.makeText(context, "Server Address Empty", Toast.LENGTH_SHORT).show();
+            startStatusMonitor();
             connectExitExt();
+        }
+    }
+
+    private void startStatusMonitor() {
+        if (headlessMode || isFinishing()) {
+            return;
+        }
+        View led = findViewById(R.id.status_led);
+        if (led == null) {
+            return;
+        }
+        statusMonitorActive = true;
+        scheduleStatusCheck(0);
+    }
+
+    private void stopStatusMonitor() {
+        statusMonitorActive = false;
+        statusCheckGeneration++;
+    }
+
+    private void scheduleStatusCheck(long delayMs) {
+        final int gen = ++statusCheckGeneration;
+        ThreadUtils.postDelayed(() -> {
+            if (!statusMonitorActive || gen != statusCheckGeneration) {
+                return;
+            }
+            EditText hostEdit = findViewById(R.id.editText_server_host);
+            final String hostText = hostEdit != null ? hostEdit.getText().toString().trim() : "";
+            ThreadUtils.execute(() -> {
+                boolean online = false;
+                if (!TextUtils.isEmpty(hostText)) {
+                    String[] serverInfo = Util.getServerHostAndPort(hostText);
+                    try {
+                        int port = Integer.parseInt(serverInfo[1]);
+                        online = AdbHelper.isDeviceOnline(App.mContext, serverInfo[0], port);
+                    } catch (NumberFormatException ignored) {
+                        online = false;
+                    }
+                }
+                final boolean onlineNow = online;
+                ThreadUtils.post(() -> {
+                    if (!statusMonitorActive || gen != statusCheckGeneration) {
+                        return;
+                    }
+                    applyStatusLed(onlineNow);
+                    scheduleStatusCheck(4000);
+                });
+            });
+        }, delayMs);
+    }
+
+    private void applyStatusLed(boolean online) {
+        View led = findViewById(R.id.status_led);
+        TextView label = findViewById(R.id.status_led_label);
+        if (led == null) {
+            return;
+        }
+        int color = getResources().getColor(online ? R.color.status_online : R.color.status_offline);
+        Drawable background = led.getBackground();
+        if (background instanceof GradientDrawable) {
+            ((GradientDrawable) background.mutate()).setColor(color);
+        } else if (background != null) {
+            background.mutate().setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_ATOP);
+        } else {
+            led.setBackgroundColor(color);
+        }
+        if (label != null) {
+            label.setText(online ? R.string.status_online : R.string.status_offline);
+            label.setTextColor(color);
         }
     }
 

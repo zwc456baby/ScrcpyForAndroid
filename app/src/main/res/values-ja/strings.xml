@@ -4,6 +4,8 @@
   <string name="app_subtitle">リモートデバイスをミラーリング</string>
   <string name="app_title">Scrcpy For Android</string>
   <string name="label_server_ip">リモートデバイス IP（例: 192.168.1.4 または 192.168.1.4:5555）</string>
+  <string name="status_online">オンライン</string>
+  <string name="status_offline">オフライン</string>
   <string name="label_video_resolution">解像度 / 最大サイズ</string>
   <string name="delay_control">遅延コントロール</string>
   <string name="label_video_bitrate">ビットレート (-b)</string>
@@ -13,6 +15,11 @@
   <string name="hint_video_encoder">例: c2.android.avc.encoder（空=デフォルト）</string>
   <string name="label_x">x</string>
   <string name="action_start">開始</string>
+  <string name="action_reboot">Android を再起動 (ADB)</string>
+  <string name="reboot_title">デバイス再起動</string>
+  <string name="reboot_ask">ADB で %1$s を再起動しますか？\nデバイスは電源オフ後に再起動します。</string>
+  <string name="reboot_wait">reboot コマンドを送信中…</string>
+  <string name="reboot_sent">%1$s に reboot コマンドを送信しました</string>
   <string name="action_share_log">ログを送信 (メール / WhatsApp / …)</string>
   <string name="share_log_subject">Scrcpy log %1$s r%2$d</string>
   <string name="share_log_empty">ログが空です</string>

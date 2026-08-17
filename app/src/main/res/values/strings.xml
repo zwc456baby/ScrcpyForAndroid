@@ -4,6 +4,8 @@
     <string name="app_title">Scrcpy For Android</string>
 
     <string name="label_server_ip">Remote Device IP (es. 192.168.1.4 oppure 192.168.1.4:5555)</string>
+    <string name="status_online">Online</string>
+    <string name="status_offline">Offline</string>
     <string name="label_video_resolution">Max size / risoluzione</string>
     <string name="delay_control">Delay Control</string>
     <string name="label_video_bitrate">Bitrate (-b)</string>
@@ -13,6 +15,11 @@
     <string name="hint_video_encoder">es. c2.android.avc.encoder (vuoto = default)</string>
     <string name="label_x">x</string>
     <string name="action_start">Start</string>
+    <string name="action_reboot">Riavvia Android (ADB)</string>
+    <string name="reboot_title">Riavvio dispositivo</string>
+    <string name="reboot_ask">Riavviare %1$s via ADB?\nIl dispositivo si spegnerà e si riaccenderà.</string>
+    <string name="reboot_wait">Invio comando reboot…</string>
+    <string name="reboot_sent">Comando reboot inviato a %1$s</string>
     <string name="action_share_log">Invia log (email / WhatsApp / …)</string>
     <string name="share_log_subject">Scrcpy log %1$s r%2$d</string>
     <string name="share_log_empty">Log vuoto</string>

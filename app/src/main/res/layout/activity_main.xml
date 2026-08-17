@@ -72,13 +72,38 @@
                 android:paddingRight="10dp"
                 android:paddingBottom="5dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingTop="5dp"
-                    android:text="@string/label_server_ip"
-                    android:textAppearance="@android:style/TextAppearance"
-                    android:textColor="@color/white" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingTop="5dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/label_server_ip"
+                        android:textAppearance="@android:style/TextAppearance"
+                        android:textColor="@color/white" />
+
+                    <View
+                        android:id="@+id/status_led"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginLeft="8dp"
+                        android:background="@drawable/status_led" />
+
+                    <TextView
+                        android:id="@+id/status_led_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="6dp"
+                        android:text="@string/status_offline"
+                        android:textColor="@color/status_offline"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -422,6 +447,18 @@
                 android:text="@string/action_start"
                 android:textColor="@color/white"
                 android:textSize="16sp" />
+
+            <Button
+                android:id="@+id/button_reboot"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginRight="10dp"
+                android:background="@drawable/btn_selector"
+                android:text="@string/action_reboot"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
 
             <Button
                 android:id="@+id/button_share_log"

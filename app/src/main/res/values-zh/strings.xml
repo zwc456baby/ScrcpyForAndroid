@@ -4,6 +4,8 @@
     <string name="app_title">Scrcpy For Android</string>
 
     <string name="label_server_ip">手机的IP地址,例如: 192.168.1.4 或 192.168.1.4:5555</string>
+    <string name="status_online">在线</string>
+    <string name="status_offline">离线</string>
     <string name="label_video_resolution">分辨率 / 最大尺寸</string>
     <string name="delay_control">延迟控制</string>
     <string name="label_video_bitrate">码率 (-b)</string>
@@ -13,6 +15,11 @@
     <string name="hint_video_encoder">例如 c2.android.avc.encoder (空=默认)</string>
     <string name="label_x">x</string>
     <string name="action_start">启动连接</string>
+    <string name="action_reboot">重启 Android (ADB)</string>
+    <string name="reboot_title">重启设备</string>
+    <string name="reboot_ask">通过 ADB 重启 %1$s？\n设备将会关机并重新开机。</string>
+    <string name="reboot_wait">正在发送 reboot 命令…</string>
+    <string name="reboot_sent">已向 %1$s 发送 reboot 命令</string>
     <string name="action_share_log">发送日志 (邮件 / WhatsApp / …)</string>
     <string name="share_log_subject">Scrcpy log %1$s r%2$d</string>
     <string name="share_log_empty">日志为空</string>
