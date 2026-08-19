@@ -26,6 +26,7 @@
     <string name="appswitch_button">=</string>
     <string name="home_button">o</string>
     <string name="back_button">\u003C</string>
+    <string name="power_button">\u23FB</string>
     <string name="switch0">Viewing mode (no control)</string>
     <string name="switch1">Bottom control button (back button)</string>
     <string name="switch_audio">Enable audio forwarding</string>

@@ -518,6 +518,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             final View backButton = findViewById(R.id.back_button);
             final View homeButton = findViewById(R.id.home_button);
             final View appswitchButton = findViewById(R.id.appswitch_button);
+            final View powerButton = findViewById(R.id.power_button);
 
             if (backButton != null) {
                 backButton.setOnClickListener(v -> scrcpy.sendKeyevent(KeyEvent.KEYCODE_BACK));
@@ -527,6 +528,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             }
             if (appswitchButton != null) {
                 appswitchButton.setOnClickListener(v -> scrcpy.sendKeyevent(KeyEvent.KEYCODE_APP_SWITCH));
+            }
+            if (powerButton != null) {
+                powerButton.setOnClickListener(v -> scrcpy.sendKeyevent(KeyEvent.KEYCODE_POWER));
             }
         }
     }
