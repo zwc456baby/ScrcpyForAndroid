@@ -290,6 +290,10 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         if (rebootButton != null) {
             rebootButton.setOnClickListener(v -> confirmRebootRemoteDevice());
         }
+        Button powerOffButton = findViewById(R.id.button_power_off);
+        if (powerOffButton != null) {
+            powerOffButton.setOnClickListener(v -> confirmPowerOffRemoteDevice());
+        }
         Button shareLogButton = findViewById(R.id.button_share_log);
         if (shareLogButton != null) {
             shareLogButton.setOnClickListener(v -> shareSessionLog());
@@ -1089,6 +1093,39 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                     return;
                 }
                 Toast.makeText(context, getString(R.string.reboot_sent, device), Toast.LENGTH_SHORT).show();
+                startStatusMonitor();
+            });
+        });
+    }
+
+    private void confirmPowerOffRemoteDevice() {
+        getAttributes();
+        if (TextUtils.isEmpty(serverAdr)) {
+            Toast.makeText(context, "Server Address Empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] serverInfo = Util.getServerHostAndPort(serverAdr);
+        String device = serverInfo[0] + ":" + serverInfo[1];
+        Dialog.displayDialog(this,
+                getString(R.string.power_off_title),
+                getString(R.string.power_off_ask, device),
+                () -> powerOffRemoteDevice(device),
+                () -> {
+                });
+    }
+
+    private void powerOffRemoteDevice(String device) {
+        Progress.showDialog(MainActivity.this, getString(R.string.power_off_wait));
+        ThreadUtils.workPost(() -> {
+            AdbHelper.adbCmd(App.mContext, "connect", device);
+            String result = AdbHelper.adbCmd(App.mContext, "-s", device, "reboot", "-p");
+            SessionLog.i("ADB power off device=" + device + " result=" + result);
+            ThreadUtils.post(() -> {
+                Progress.closeDialog();
+                if (MainActivity.this.isFinishing()) {
+                    return;
+                }
+                Toast.makeText(context, getString(R.string.power_off_sent, device), Toast.LENGTH_SHORT).show();
                 startStatusMonitor();
             });
         });

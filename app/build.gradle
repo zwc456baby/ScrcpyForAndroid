@@ -26,9 +26,9 @@ android {
 
         targetSdkVersion 31
 
-        versionCode 32
+        versionCode 33
 
-        versionName "1.5.19"
+        versionName "1.5.20"
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 

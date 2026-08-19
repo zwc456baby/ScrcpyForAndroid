@@ -16,10 +16,15 @@
     <string name="label_x">x</string>
     <string name="action_start">Start</string>
     <string name="action_reboot">Riavvia Android (ADB)</string>
+    <string name="action_power_off">Spegni Android (ADB)</string>
     <string name="reboot_title">Riavvio dispositivo</string>
     <string name="reboot_ask">Riavviare %1$s via ADB?\nIl dispositivo si spegnerà e si riaccenderà.</string>
     <string name="reboot_wait">Invio comando reboot…</string>
     <string name="reboot_sent">Comando reboot inviato a %1$s</string>
+    <string name="power_off_title">Spegnimento dispositivo</string>
+    <string name="power_off_ask">Spegnere %1$s via ADB?\nIl dispositivo si spegnerà completamente.</string>
+    <string name="power_off_wait">Invio comando spegnimento…</string>
+    <string name="power_off_sent">Comando spegnimento inviato a %1$s</string>
     <string name="action_share_log">Invia log (email / WhatsApp / …)</string>
     <string name="share_log_subject">Scrcpy log %1$s r%2$d</string>
     <string name="share_log_empty">Log vuoto</string>

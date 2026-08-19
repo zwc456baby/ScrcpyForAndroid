@@ -16,10 +16,15 @@
   <string name="label_x">x</string>
   <string name="action_start">開始</string>
   <string name="action_reboot">Android を再起動 (ADB)</string>
+  <string name="action_power_off">Android を電源オフ (ADB)</string>
   <string name="reboot_title">デバイス再起動</string>
   <string name="reboot_ask">ADB で %1$s を再起動しますか？\nデバイスは電源オフ後に再起動します。</string>
   <string name="reboot_wait">reboot コマンドを送信中…</string>
   <string name="reboot_sent">%1$s に reboot コマンドを送信しました</string>
+  <string name="power_off_title">デバイス電源オフ</string>
+  <string name="power_off_ask">ADB で %1$s を電源オフしますか？\nデバイスは完全にシャットダウンします。</string>
+  <string name="power_off_wait">電源オフコマンドを送信中…</string>
+  <string name="power_off_sent">%1$s に電源オフコマンドを送信しました</string>
   <string name="action_share_log">ログを送信 (メール / WhatsApp / …)</string>
   <string name="share_log_subject">Scrcpy log %1$s r%2$d</string>
   <string name="share_log_empty">ログが空です</string>

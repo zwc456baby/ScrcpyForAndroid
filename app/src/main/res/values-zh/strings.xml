@@ -16,10 +16,15 @@
     <string name="label_x">x</string>
     <string name="action_start">启动连接</string>
     <string name="action_reboot">重启 Android (ADB)</string>
+    <string name="action_power_off">关机 Android (ADB)</string>
     <string name="reboot_title">重启设备</string>
     <string name="reboot_ask">通过 ADB 重启 %1$s？\n设备将会关机并重新开机。</string>
     <string name="reboot_wait">正在发送 reboot 命令…</string>
     <string name="reboot_sent">已向 %1$s 发送 reboot 命令</string>
+    <string name="power_off_title">关闭设备</string>
+    <string name="power_off_ask">通过 ADB 关闭 %1$s？\n设备将完全关机。</string>
+    <string name="power_off_wait">正在发送关机命令…</string>
+    <string name="power_off_sent">已向 %1$s 发送关机命令</string>
     <string name="action_share_log">发送日志 (邮件 / WhatsApp / …)</string>
     <string name="share_log_subject">Scrcpy log %1$s r%2$d</string>
     <string name="share_log_empty">日志为空</string>
