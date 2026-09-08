@@ -12,6 +12,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          submodules: recursive # platform-tools 是 git submodule（lzhiyong/android-sdk-tools）
 
       - name: Install Build Dependencies
         run: |
@@ -40,17 +41,31 @@ jobs:
         run: |
           set -e
           TAG=platform-tools-35.0.2
+          clone_retry() { # googlesource 偶发 SSL/EOF 断连，重试 3 次
+            local url="$1" path="$2" branch="$3" i
+            for i in 1 2 3; do
+              if [ -d "$path/.git" ]; then return 0; fi
+              rm -rf "$path"
+              if [ -n "$branch" ]; then
+                git clone -c advice.detachedHead=false --depth 1 --branch "$branch" "$url" "$path" && return 0
+              else
+                git clone -c advice.detachedHead=false --depth 1 "$url" "$path" && return 0
+              fi
+              echo "clone attempt $i failed for $path, retrying..."
+              sleep 10
+            done
+            return 1
+          }
           # 注意: repos.json 中的 zopfli / build 两个仓库没有该 tag，
           # get_source.py 会直接失败，这里做 tag 缺失时回退默认分支
           python3 -c "import json,sys; [print(r['path'], r['url']) for r in json.load(open('repos.json'))]" | while read -r path url; do
             if [ ! -d "$path/.git" ]; then
-              mkdir -p "$path"
               if git ls-remote --exit-code "$url" "refs/tags/$TAG" >/dev/null 2>&1; then
                 echo "cloning $path @ $TAG"
-                git clone -c advice.detachedHead=false --depth 1 --branch "$TAG" "$url" "$path"
+                clone_retry "$url" "$path" "$TAG"
               else
                 echo "tag $TAG missing for $path, fallback to default branch"
-                git clone -c advice.detachedHead=false --depth 1 "$url" "$path"
+                clone_retry "$url" "$path" ""
               fi
             fi
           done
