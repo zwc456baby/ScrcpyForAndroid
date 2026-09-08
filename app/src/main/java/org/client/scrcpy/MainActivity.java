@@ -104,8 +104,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
 // USB ADB support
     private static final String ACTION_USB_PERMISSION = "org.client.scrcpy.USB_PERMISSION";
-    // Marker used in the address field / dropdown to indicate the USB transport.
-    private static final String USB_PREFIX = "USB: ";
+
     private UsbManager usbManager;
     private UsbAdb usbAdb;
 
@@ -192,12 +191,16 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
     // userDisconnect ：是否为用户手动断开连接
     private void showMainView(boolean userDisconnect) {
+        // 先停止 Scrcpy 服务（停止视频流），再关闭 usbAdb。
+        // 若先关 USB 连接，readerThread 可能正阻塞在 bulkTransfer 上，
+        // 强制中断传输会导致设备被重新枚举（deviceId 变化），授权丢失，
+        // 下次启动连接时就会重新弹 USB 授权请求。
+        if (scrcpy != null) {
+            scrcpy.StopService();
+        }
         if (usbAdb != null) {
             usbAdb.close();
             usbAdb = null;
-        }
-        if (scrcpy != null) {
-            scrcpy.StopService();
         }
         try {
             // 可能会导致重复解绑，所以捕获异常
@@ -229,7 +232,6 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         super.onCreate(savedInstanceState);
         this.context = this;
         usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
         setTitle(getString(R.string.app_name));
         if (savedInstanceState != null) {
             first_time = savedInstanceState.getBoolean("first_time");
@@ -312,6 +314,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
         startButton.setOnClickListener(v -> {
             stopStatusMonitor();
+            // 启动连接前先释放上一次的 USB/scrcpy 会话（停止服务、关闭 usbAdb、
+            // 释放 7008 与 USB 设备），避免横屏/反复连接后授权丢失或 openDevice 失败
+            cleanupUsbSessionForShell();
             getAttributes();
             SessionLog.i("Start clicked host=" + serverAdr
                     + " max=" + Math.max(screenHeight, screenWidth)
@@ -319,7 +324,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                     + " codec=" + videoCodec
                     + " encoder=" + videoEncoder
                     + " fps=" + videoFrameRate);
-            if (isUsbSelection(serverAdr)) {
+            if (UsbShellCompat.isUsbSelection(serverAdr)) {
                 connectViaUsb();
             } else {
                 connectScrcpyServer(serverAdr);
@@ -340,6 +345,12 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         Button adbShellButton = findViewById(R.id.button_adb_shell);
         if (adbShellButton != null) {
             adbShellButton.setOnClickListener(v -> {
+                // 进入 ADB 命令行前，必须彻底停止 scrcpy/USB 会话：
+                // 关闭 usbAdb（释放 USB 设备与 7008 端口）、停止 scrcpy 服务、
+                // 解绑服务并清除 resumeScrcpy。
+                // 否则 USB 设备被旧会话占用，AdbShellActivity 会再次弹授权，
+                // 且从命令行返回后 onResume/onStart 会自动恢复 scrcpy 画面。
+                cleanupUsbSessionForShell();
                 EditText hostEdit = findViewById(R.id.editText_server_host);
                 String device = hostEdit == null ? "" : hostEdit.getText().toString().trim();
                 Intent shellIntent = new Intent(this, AdbShellActivity.class);
@@ -426,11 +437,14 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 listPopupWindow.dismiss();
-                if (i == 0) {  // 选择了 "Connect via USB"
-                    getAttributes();
-                    connectViaUsb();
-                } else {
-                    mEditText.setText(finalList[i]);
+                mEditText.setText(finalList[i]);
+                if (i == 0) {  // 选择了 USB 连接入口，仅填入设备，由用户点击启动/ADB命令按钮
+                    // 触发一次状态刷新，检测 USB 设备在线状态
+                    if (statusMonitorActive) {
+                        scheduleStatusCheck(0);
+                    } else {
+                        startStatusMonitor();
+                    }
                 }
             }
         });
@@ -737,7 +751,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             serverAdr = serverAdr.trim();
         }
         // 不要把 USB 选择项当作 IP 地址持久化
-        if (!TextUtils.isEmpty(serverAdr) && !isUsbSelection(serverAdr)) {
+        if (!TextUtils.isEmpty(serverAdr) && !UsbShellCompat.isUsbSelection(serverAdr)) {
             PreUtils.put(context, Constant.CONTROL_REMOTE_ADDR, serverAdr);
         }
         final Spinner videoResolutionSpinner = findViewById(R.id.spinner_video_resolution);
@@ -927,7 +941,10 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
                 surface = holder.getSurface();
-                if (!serviceBound) {
+                // 仅在用户主动发起连接（first_time）且服务未绑定时启动服务。
+                // 横屏旋转/退出后 surface 重建时（first_time=false）不重启服务，
+                // 否则会误启动 scrcpy 会话，导致与下次连接冲突。
+                if (!serviceBound && first_time) {
                     start_Scrcpy_service();
                 } else if (scrcpy != null && isSurfaceReady(surface)) {
                     scrcpy.setParms(surface, screenWidth, screenHeight);
@@ -1057,6 +1074,12 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     protected void onPause() {
         super.onPause();
         Log.d("Scrcpy", "onPause: " + serviceBound);
+        try {
+            // 页面不在前台时注销 USB 授权广播，避免 AdbShellActivity 的授权
+            // 请求结果被本页面也接收，导致 scrcpy 与 adb 命令行同时启动
+            unregisterReceiver(usbPermissionReceiver);
+        } catch (Exception ignored) {
+        }
         if (first_time) {
             stopStatusMonitor();
         }
@@ -1069,6 +1092,10 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     @Override
     protected void onResume() {
         super.onResume();
+        try {
+            registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+        } catch (Exception ignored) {
+        }
         if (first_time) {
             startStatusMonitor();
         }
@@ -1297,12 +1324,16 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             ThreadUtils.execute(() -> {
                 boolean online = false;
                 if (!TextUtils.isEmpty(hostText)) {
-                    String[] serverInfo = Util.getServerHostAndPort(hostText);
-                    try {
-                        int port = Integer.parseInt(serverInfo[1]);
-                        online = AdbHelper.isDeviceOnline(App.mContext, serverInfo[0], port);
-                    } catch (NumberFormatException ignored) {
-                        online = false;
+                    if (UsbShellCompat.isUsbSelection(hostText)) {
+                        online = isUsbDeviceOnline();
+                    } else {
+                        String[] serverInfo = Util.getServerHostAndPort(hostText);
+                        try {
+                            int port = Integer.parseInt(serverInfo[1]);
+                            online = AdbHelper.isDeviceOnline(App.mContext, serverInfo[0], port);
+                        } catch (NumberFormatException ignored) {
+                            online = false;
+                        }
                     }
                 }
                 final boolean onlineNow = online;
@@ -1315,6 +1346,56 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 });
             });
         }, delayMs);
+    }
+
+    /**
+     * A USB device is considered online when it is attached, exposes an ADB
+     * interface and has been granted USB access permission.
+     */
+    private boolean isUsbDeviceOnline() {
+        if (usbManager == null) {
+            usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        }
+        UsbDevice device = UsbAdb.findAdbDevice(usbManager);
+        if (device == null || AdbConnection.findAdbInterface(device) == null) {
+            return false;
+        }
+        return usbManager.hasPermission(device);
+    }
+
+    /**
+     * 进入 ADB 命令行前，彻底停止 scrcpy/USB 会话。
+     * <p>
+     * 1. 先停止 scrcpy 服务（停止视频流），再关闭 usbAdb：释放 USB 设备
+     *    连接与 7008 端口（bridge）。若先关 USB 连接，readerThread 阻塞在
+     *    bulkTransfer 时强制中断会导致设备重新枚举，授权丢失；
+     * 2. 解绑服务并清除 resumeScrcpy，防止从命令行页面返回后
+     *    onResume/onStart 自动恢复远程画面。
+     */
+    private void cleanupUsbSessionForShell() {
+        if (scrcpy != null) {
+            try {
+                scrcpy.StopService();
+            } catch (Exception e) {
+                Log.e("Scrcpy", "stop scrcpy failed", e);
+            }
+            scrcpy = null;
+        }
+        if (usbAdb != null) {
+            try {
+                usbAdb.close();
+            } catch (Exception e) {
+                Log.e("Scrcpy", "close usbAdb failed", e);
+            }
+            usbAdb = null;
+        }
+        try {
+            unbindService(serviceConnection);
+        } catch (Exception e) {
+            // 可能未绑定，忽略
+        }
+        serviceBound = false;
+        resumeScrcpy = false;
     }
 
     private void applyStatusLed(boolean online) {
@@ -1338,21 +1419,6 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         }
     }
 
-    /**
-     * Discover a USB-attached device and start (or request permission for) a
-     * USB ADB connection. Mirrors {@link #connectScrcpyServer(String)} but over
-     * the pure-Java USB transport instead of the WiFi/TCP adb binary.
-     */
-    /** True if the given address field value refers to the USB transport. */
-    private boolean isUsbSelection(String value) {
-        return value != null && value.startsWith(USB_PREFIX);
-    }
-
-    /**
-     * Label for a connected USB ADB device (as it would appear in
-     * {@code adb devices}), prefixed with {@link #USB_PREFIX}, or null if no
-     * ADB-capable USB device is attached.
-     */
     private String getUsbAdbDeviceLabel() {
         if (usbManager == null) {
             usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
@@ -1361,7 +1427,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         if (device == null || AdbConnection.findAdbInterface(device) == null) {
             return null;
         }
-        return USB_PREFIX + usbDeviceName(device);
+        return UsbShellCompat.USB_PREFIX + usbDeviceName(device);
     }
 
     private String usbDeviceName(UsbDevice device) {
@@ -1414,27 +1480,48 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             Progress.showDialog(MainActivity.this, getString(R.string.please_wait));
         }
         ThreadUtils.workPost(() -> {
+            UsbAdb adb = null;
             try {
+                // 先释放上一次的 USB 会话（释放 7008 监听端口和 USB 设备），再建立新连接
+                if (usbAdb != null) {
+                    usbAdb.close();
+                    usbAdb = null;
+                }
+                // 移除 adb server 中的端口转发（tcp:7008 → tcp:7007）。
+                // WiFi（IP）连接时会在 adb server 内创建该 forward 并持续监听 7008，
+                // 若不移除，USB 连接的 AdbForwardBridge 绑定 7008 会报
+                // "bind failed: address already in use"。
+                try {
+                    AdbHelper.adbCmd(App.mContext, "forward", "--remove-all");
+                } catch (Exception ignored) {
+                }
                 AdbHelper.writeAssetsJarServer(App.mContext);
                 File jar = new File(context.getExternalFilesDir("scrcpy"), "scrcpy-server.jar");
-                UsbAdb adb = UsbAdb.connect(context, usbManager, device);
+                adb = UsbAdb.connect(context, usbManager, device);
                 adb.startServerAndForward(jar, Scrcpy.LOCAL_FORWART_PORT, Scrcpy.LOCAL_IP,
                         videoBitrate, Math.max(screenHeight, screenWidth),
                         PreUtils.get(context, Constant.AUDIO_FORWARD, true));
-                // Close any previous USB session before replacing it.
-                if (usbAdb != null) {
-                    usbAdb.close();
-                }
                 usbAdb = adb;
+                adb = null;  // 所有权已转移给 usbAdb，防止 catch 误关
                 ThreadUtils.post(() -> {
                     if (!MainActivity.this.isFinishing()) {
                         Log.e("Scrcpy: ", "from USB connect");
                         start_screen_copy_magic();
+                    } else {
+                        // activity 已销毁，立即释放连接，避免监听端口泄漏
+                        if (usbAdb != null) {
+                            usbAdb.close();
+                            usbAdb = null;
+                        }
                     }
                 });
             } catch (Exception e) {
                 Log.e("Scrcpy", "USB connect failed", e);
                 final String message = e.getMessage();
+                // 失败时释放已建立的 bridge/connection，防止 7008 端口被占用
+                if (adb != null) {
+                    adb.close();
+                }
                 ThreadUtils.post(() -> {
                     Progress.closeDialog();
                     Toast.makeText(context,
@@ -1468,6 +1555,13 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             // 如果自动断开了端口连接，在系统恢复时，重启adb，避免
             // 警告！！！ 重启将会导致 adb 配对过程失效，从而无法连接新设备，需要更智能的重启机制
             // AdbHelper.restartAdb();
+        }
+        // 移除 adb server 中的端口转发（WiFi 连接创建的 tcp:7008 → tcp:7007），
+        // 否则该 forward 会持续占用 7008 端口，之后用 USB 连接会报
+        // "bind failed: address already in use"
+        try {
+            AdbHelper.adbCmd(App.mContext, "forward", "--remove-all");
+        } catch (Exception ignored) {
         }
         if (headlessMode && !resumeScrcpy && !result_of_Rotation) {
             if (!userDisconnect) {

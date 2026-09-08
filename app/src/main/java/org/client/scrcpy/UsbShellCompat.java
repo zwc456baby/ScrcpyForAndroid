@@ -30,6 +30,8 @@ public class UsbShellCompat {
     private static final long CONNECT_TIMEOUT_MS = 30_000;
     private static final long STREAM_TIMEOUT_MS = 10_000;
 
+    public static final String USB_PREFIX = "USB: ";
+
     private Object connection;
     private Object stream;
 
@@ -47,6 +49,10 @@ public class UsbShellCompat {
         } catch (ClassNotFoundException e) {
             return false;
         }
+    }
+
+    public static boolean isUsbSelection(String value) {
+        return value != null && value.startsWith(USB_PREFIX);
     }
 
     /** The first attached ADB-capable USB device, or null. */
