@@ -19,14 +19,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build cmake bison flex python3-pip
 
-      - name: Setup Android NDK r27b
-        uses: android-actions/setup-android@v3
-        with:
-          ndk: 27.1.12297006 # r27b
-      - name: Verify NDK Path
+      - name: Setup Android NDK r27b (direct download)
         run: |
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> $GITHUB_ENV
-          test -f "$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" && echo "NDK toolchain OK"
+          # 不用 android-actions/setup-android（其 NDK 目录布局不可控，会导致
+          # build/cmake/android.toolchain.cmake 缺失），直接下载官方 NDK zip
+          curl -L --retry 5 --retry-delay 3 -o "$RUNNER_TEMP/ndk.zip" \
+            https://dl.google.com/android/repository/android-ndk-r27b-linux.zip
+          unzip -q "$RUNNER_TEMP/ndk.zip" -d "$RUNNER_TEMP"
+          echo "ANDROID_NDK_HOME=$RUNNER_TEMP/android-ndk-r27b" >> $GITHUB_ENV
+          test -f "$RUNNER_TEMP/android-ndk-r27b/build/cmake/android.toolchain.cmake" && echo "NDK toolchain OK"
 
       - name: Download Host Protoc 3.21.12 (prebuilt)
         run: |
