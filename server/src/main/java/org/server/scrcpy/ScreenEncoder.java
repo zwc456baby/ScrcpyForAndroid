@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.Rect;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
+import android.media.MediaCodecList;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
@@ -21,12 +22,14 @@ import org.server.scrcpy.wrappers.SurfaceControl;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ScreenEncoder implements Device.RotationListener {
 
     private static final int DEFAULT_FRAME_RATE = 60; // fps
-    private static final int DEFAULT_I_FRAME_INTERVAL = 10; // seconds
+    private static final int DEFAULT_I_FRAME_INTERVAL = 1; // seconds, lower = faster recovery
 
     private static final int REPEAT_FRAME_DELAY = 6; // repeat after 6 frames
 
@@ -39,35 +42,186 @@ public class ScreenEncoder implements Device.RotationListener {
     private int bitRate;
     private int frameRate;
     private int iFrameInterval;
+    private String mimeType = "video/avc";
+    private String encoderName = "";
+    private String lastGoodEncoder = "";
 
     public ScreenEncoder(int bitRate, int frameRate, int iFrameInterval) {
+        this(bitRate, frameRate, iFrameInterval, "video/avc", "");
+    }
+
+    public ScreenEncoder(int bitRate, int frameRate, int iFrameInterval, String mimeType, String encoderName) {
         this.bitRate = bitRate;
-        this.frameRate = frameRate;
+        this.frameRate = frameRate > 0 ? frameRate : DEFAULT_FRAME_RATE;
         this.iFrameInterval = iFrameInterval;
+        this.mimeType = mimeType == null || mimeType.isEmpty() ? "video/avc" : mimeType;
+        this.encoderName = normalizeEncoderName(encoderName);
     }
 
     public ScreenEncoder(int bitRate) {
         this(bitRate, DEFAULT_FRAME_RATE, DEFAULT_I_FRAME_INTERVAL);
     }
 
-    private static MediaCodec createCodec() throws IOException {
-        return MediaCodec.createEncoderByType("video/avc");
+    public ScreenEncoder(Options options) {
+        this(options.getBitRate(), options.getFrameRate(), DEFAULT_I_FRAME_INTERVAL,
+                options.getVideoMimeType(),
+                options.hasCustomEncoder() ? options.getVideoEncoder() : "");
     }
 
-    private static MediaFormat createFormat(int bitRate, int frameRate, int iFrameInterval) throws IOException {
+    private static boolean isUnreliableEncoder(String encoderName) {
+        if (encoderName == null) {
+            return false;
+        }
+        String name = encoderName.toLowerCase();
+        // c2.v4l2.* su alcuni SoC accetta configure/start ma non emette mai frame.
+        return name.contains("v4l2");
+    }
+
+    private static boolean isSoftwareEncoder(MediaCodecInfo info, String name) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                return info.isSoftwareOnly();
+            } catch (Throwable ignored) {
+            }
+        }
+        String n = name.toLowerCase();
+        return n.contains("android") || n.contains("google") || n.contains(".sw.");
+    }
+
+    private static boolean supportsMime(MediaCodecInfo info, String mime) {
+        String[] types = info.getSupportedTypes();
+        if (types == null) {
+            return false;
+        }
+        for (String type : types) {
+            if (mime.equalsIgnoreCase(type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<String> listEncoders(boolean software) {
+        List<String> names = new ArrayList<>();
+        MediaCodecInfo[] codecs = new MediaCodecList(MediaCodecList.REGULAR_CODECS).getCodecInfos();
+        for (MediaCodecInfo info : codecs) {
+            if (info == null || !info.isEncoder() || !supportsMime(info, mimeType)) {
+                continue;
+            }
+            String name = info.getName();
+            if (isUnreliableEncoder(name) || isSoftwareEncoder(info, name) != software) {
+                continue;
+            }
+            names.add(name);
+        }
+        return names;
+    }
+
+    private static String normalizeEncoderName(String encoderName) {
+        if (encoderName == null) {
+            return "";
+        }
+        String name = encoderName.trim();
+        if (name.isEmpty() || Options.DEFAULT_ENCODER.equals(name)) {
+            return "";
+        }
+        return name;
+    }
+
+    private MediaCodec createCodec(int attempt) throws IOException {
+        Exception last = null;
+        List<String> hw = listEncoders(false);
+        List<String> sw = listEncoders(true);
+        if (attempt == 0 && lastGoodEncoder.isEmpty()) {
+            Ln.i("HW encoders: " + hw);
+            Ln.i("SW encoders: " + sw);
+        }
+        List<String> fallbacks = new ArrayList<>();
+        if (attempt == 0) {
+            if (!encoderName.isEmpty()) {
+                fallbacks.add(encoderName);
+            }
+            if (!lastGoodEncoder.isEmpty() && !fallbacks.contains(lastGoodEncoder)) {
+                fallbacks.add(lastGoodEncoder);
+            }
+            for (String name : hw) {
+                if (!fallbacks.contains(name)) {
+                    fallbacks.add(name);
+                }
+            }
+            for (String name : sw) {
+                if (!fallbacks.contains(name)) {
+                    fallbacks.add(name);
+                }
+            }
+        } else {
+            fallbacks.addAll(sw);
+            if ("video/hevc".equals(mimeType)) {
+                fallbacks.add("c2.android.hevc.encoder");
+                fallbacks.add("OMX.google.hevc.encoder");
+            } else {
+                fallbacks.add("c2.android.avc.encoder");
+                fallbacks.add("OMX.google.h264.encoder");
+            }
+        }
+
+        for (String name : fallbacks) {
+            if (name == null || name.isEmpty()) {
+                continue;
+            }
+            try {
+                Ln.i("Trying video encoder: " + name);
+                MediaCodec codec = MediaCodec.createByCodecName(name);
+                String actualName = codec.getName();
+                if (isUnreliableEncoder(actualName) && !actualName.equalsIgnoreCase(encoderName)) {
+                    Ln.w("Skipping unreliable video encoder: " + actualName);
+                    try {
+                        codec.release();
+                    } catch (Exception ignored) {
+                    }
+                    continue;
+                }
+                Ln.i("Video encoder ready: " + actualName);
+                return codec;
+            } catch (Exception e) {
+                Ln.e("Encoder candidate failed: " + name, e);
+                last = e;
+            }
+        }
+        if (last instanceof IOException) {
+            throw (IOException) last;
+        }
+        throw new IOException("No video encoder available for " + mimeType, last);
+    }
+
+    private MediaFormat createFormat(int bitRate, int frameRate, int iFrameInterval) {
         MediaFormat format = new MediaFormat();
-        format.setString(MediaFormat.KEY_MIME, "video/avc");
+        format.setString(MediaFormat.KEY_MIME, mimeType);
         format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
         format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, iFrameInterval);
-
-        // display the very first frame, and recover from bad quality when no new frames
-        format.setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, MICROSECONDS_IN_ONE_SECOND * REPEAT_FRAME_DELAY / frameRate); // µs
+        format.setInteger("max-bframes", 0);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            format.setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            format.setInteger(MediaFormat.KEY_PRIORITY, 0);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            format.setInteger(MediaFormat.KEY_LATENCY, 1);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            format.setInteger(MediaFormat.KEY_OPERATING_RATE, frameRate);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            format.setInteger(MediaFormat.KEY_LOW_LATENCY, 1);
+        }
+        format.setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 100_000);
         return format;
     }
 
-    private static IBinder createDisplay() {
+    private static IBinder createDisplay() throws Exception {
         // Since Android 12 (preview), secure displays could not be created with shell permissions anymore.
         // On Android 12 preview, SDK_INT is still R (not S), but CODENAME is "S".
         boolean secure = Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && !"S".equals(
@@ -137,8 +291,13 @@ public class ScreenEncoder implements Device.RotationListener {
 
     public void streamScreen(Options options, Device device, OutputStream outputStream) throws IOException {
         // Log.d("ScreenCapture", buildDisplayListMessage());
-        int[] buf = new int[]{device.getScreenInfo().getDeviceSize().getWidth(), device.getScreenInfo().getDeviceSize().getHeight()};
-        final byte[] array = new byte[buf.length * 4];   // https://stackoverflow.com/questions/2183240/java-integer-to-byte-array
+        Size deviceSize = device.getScreenInfo().getDeviceSize();
+        Size videoSize = device.getScreenInfo().getVideoSize();
+        int[] buf = new int[]{
+                deviceSize.getWidth(), deviceSize.getHeight(),
+                videoSize.getWidth(), videoSize.getHeight()
+        };
+        final byte[] array = new byte[buf.length * 4];
         for (int j = 0; j < buf.length; j++) {
             final int c = buf[j];
             array[j * 4] = (byte) ((c & 0xFF000000) >> 24);
@@ -146,7 +305,11 @@ public class ScreenEncoder implements Device.RotationListener {
             array[j * 4 + 2] = (byte) ((c & 0xFF00) >> 8);
             array[j * 4 + 3] = (byte) (c & 0xFF);
         }
-        outputStream.write(array, 0, array.length);   // Sending device resolution
+        outputStream.write(array, 0, array.length);
+        outputStream.flush();
+        Ln.i("Sent device resolution " + buf[0] + "x" + buf[1]
+                + " video=" + buf[2] + "x" + buf[3]
+                + " mime=" + mimeType + " encoder=" + (encoderName.isEmpty() ? "default" : encoderName));
 
         if(options.isEnableAudioForward()){
             startAudioCapture(outputStream);  // start audio capture
@@ -159,7 +322,7 @@ public class ScreenEncoder implements Device.RotationListener {
         ScreenCapture capture = new ScreenCapture(device);
         try {
             do {
-                MediaCodec codec = createCodec();
+                MediaCodec codec = createCodec(errorCount);
 //                IBinder display = createDisplay();
 //                Rect deviceRect = device.getScreenInfo().getDeviceSize().toRect();
                 Rect videoRect = device.getScreenInfo().getVideoSize().toRect();
@@ -187,9 +350,14 @@ public class ScreenEncoder implements Device.RotationListener {
                     alive = true;
                 } finally {
                     Log.d("ScreenCapture", "帧处理 finally 退出了");
-                    codec.stop();
-                    // destroyDisplay(display);
-                    codec.release();
+                    try {
+                        codec.stop();
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        codec.release();
+                    } catch (Exception ignored) {
+                    }
                     if (surface != null) {
                         surface.release();
                     }
@@ -227,11 +395,25 @@ public class ScreenEncoder implements Device.RotationListener {
     @SuppressLint("NewApi")
     private boolean encode(MediaCodec codec, OutputStream outputStream) throws IOException {
         @SuppressWarnings("checkstyle:MagicNumber")
-//        byte[] buf = new byte[bitRate / 8]; // may contain up to 1 second of video
         boolean eof = false;
+        boolean gotFrame = false;
+        int noFrameCount = 0;
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
         while (!consumeRotationChange() && !eof) {
-            int outputBufferId = codec.dequeueOutputBuffer(bufferInfo, -1);
+            // Dopo il primo frame non uccidere l'encoder se lo schermo è fermo:
+            // REPEAT_FRAME può non arrivare e un timeout corto causa restart + lag.
+            int timeoutUs = gotFrame ? 100_000 : 1_000_000;
+            int outputBufferId = codec.dequeueOutputBuffer(bufferInfo, timeoutUs);
+            if (outputBufferId == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                if (!gotFrame) {
+                    noFrameCount++;
+                    if (noFrameCount > 6) {
+                        throw new IllegalStateException("Encoder produced no frames");
+                    }
+                }
+                continue;
+            }
+            noFrameCount = 0;
             eof = (bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
             try {
                 if (consumeRotationChange()) {
@@ -250,6 +432,8 @@ public class ScreenEncoder implements Device.RotationListener {
                     outputBuffer = codec.getOutputBuffer(outputBufferId);
 
                     if (bufferInfo.size > 0 && outputBuffer != null) {
+                        gotFrame = true;
+                        lastGoodEncoder = codec.getName();
                         outputBuffer.position(bufferInfo.offset);
                         outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
                         byte[] b = new byte[outputBuffer.remaining()];

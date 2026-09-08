@@ -5,6 +5,9 @@
 
     <color name="status_bar">#3C93F0</color>
 
+    <color name="status_online">#2ECC71</color>
+    <color name="status_offline">#E74C3C</color>
+
     <color name="btn_color_nomal">#323540</color>
 
     <color name="theme_color">#1D2228</color>

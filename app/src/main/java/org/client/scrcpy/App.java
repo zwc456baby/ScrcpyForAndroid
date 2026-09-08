@@ -11,6 +11,7 @@ import android.util.Log;
 import org.client.scrcpy.utils.AdbHelper;
 import org.client.scrcpy.utils.ExecUtil;
 import org.client.scrcpy.utils.PreUtils;
+import org.client.scrcpy.utils.SessionLog;
 import org.client.scrcpy.utils.ThreadUtils;
 
 import java.util.HashMap;
@@ -29,6 +30,7 @@ public class App extends Application implements Application.ActivityLifecycleCal
         super.onCreate();
         init();  // 初始化id 数据
         AdbHelper.startAdbServer();
+        SessionLog.resetAndStart(this);
     }
 
     @Override

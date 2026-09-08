@@ -26,6 +26,39 @@ public final class Size {
         return new Size(height, width);
     }
 
+    /**
+     * Scala per entrare in maxSize (lato maggiore) conservando l'aspect, poi arrotonda a multiplo di 8.
+     * maxSize &lt;= 0 = risoluzione nativa del device.
+     */
+    public Size scaleTo(int maxSize) {
+        int w = width;
+        int h = height;
+        if (maxSize > 0) {
+            if (w >= h) {
+                if (w > maxSize) {
+                    h = (int) ((long) h * maxSize / w);
+                    w = maxSize;
+                }
+            } else if (h > maxSize) {
+                w = (int) ((long) w * maxSize / h);
+                h = maxSize;
+            }
+        }
+        w = round8(w);
+        h = round8(h);
+        if (w < 8) {
+            w = 8;
+        }
+        if (h < 8) {
+            h = 8;
+        }
+        return new Size(w, h);
+    }
+
+    private static int round8(int value) {
+        return (value + 4) & ~7;
+    }
+
     public Rect toRect() {
         return new Rect(0, 0, width, height);
     }

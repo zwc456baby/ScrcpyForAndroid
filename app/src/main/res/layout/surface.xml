@@ -85,6 +85,17 @@
             android:textColor="@android:color/white"
             android:textSize="24sp" />
 
+        <Button
+            android:id="@+id/power_button"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:background="@drawable/btn_selector"
+            android:text="@string/power_button"
+            android:textAlignment="center"
+            android:textColor="@android:color/white"
+            android:textSize="24sp" />
 
     </LinearLayout>
 

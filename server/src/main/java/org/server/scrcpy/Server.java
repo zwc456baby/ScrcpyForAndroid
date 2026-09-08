@@ -15,9 +15,10 @@ public final class Server {
     private static void scrcpy(Options options) throws IOException {
         Workarounds.apply();  // init content
 
+        ip = options.getIp();
         final Device device = new Device(options);
         try (DroidConnection connection = DroidConnection.open(ip)) {
-            ScreenEncoder screenEncoder = new ScreenEncoder(options.getBitRate());
+            ScreenEncoder screenEncoder = new ScreenEncoder(options);
 
             // asynchronous
             startEventController(device, connection, screenEncoder);

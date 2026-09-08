@@ -9,6 +9,13 @@
         android:name="android.hardware.usb.host"
         android:required="false" />
 
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="true"
@@ -23,11 +30,21 @@
             android:name=".SettingActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".AdbShellActivity"
+            android:exported="false" />
+
         <service
             android:name=".Scrcpy"
             android:enabled="true"
             android:exported="true" />
         <service android:name=".FloatService" />
+
+        <provider
+            android:name=".LogFileProvider"
+            android:authorities="${applicationId}.log"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 
 </manifest>

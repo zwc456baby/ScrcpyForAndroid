@@ -1,63 +1,141 @@
 evaluationDependsOn(':server')
 
+
+
 apply plugin: 'com.android.application'
 
+
+
 android {
+
     namespace 'org.client.scrcpy'
+
     flavorDimensions = ["default"]
 
+
+
     compileSdkVersion 31
-    defaultConfig {
-        minSdkVersion 21
-        targetSdkVersion 31
-        versionCode 14
-        versionName "1.5.1"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-        setProperty("archivesBaseName", "scrcpy")
+
+    buildFeatures {
+        buildConfig true
     }
+
+    defaultConfig {
+
+        minSdkVersion 21
+
+        targetSdkVersion 31
+
+        versionCode 33
+
+        versionName "1.5.20"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+
     signingConfigs {
+
         release {
+
             storeFile file("scrcpy.jks")
 
+
+
             def properties = new Properties()
+
             if (file("../local.properties").exists()) {
+
                 file("../local.properties").withInputStream { stream ->
+
                     properties.load(stream)
+
                 }
+
             }
+
+
 
             storePassword System.getenv("SIGNING_STORE_PASSWORD") ?: properties.getProperty("SIGNING_STORE_PASSWORD")
+
             keyAlias System.getenv("SIGNING_KEY_ALIAS") ?: properties.getProperty("SIGNING_KEY_ALIAS")
+
             keyPassword System.getenv("SIGNING_KEY_PASSWORD") ?: properties.getProperty("SIGNING_KEY_PASSWORD")
+
         }
+
     }
+
+
 
     buildTypes {
+
         release {
+
             minifyEnabled false
+
             if (file("scrcpy.jks").exists()) {
+
                 signingConfig signingConfigs.release
+
             }
+
         }
+
     }
 
+
+
     productFlavors {
+
         scrcpy {
+
             applicationId "org.client.scrcpy"
+
         }
+
     }
+
+
+
 
 
     tasks.whenTaskAdded { task ->
+
         def buildType = gradle.startParameter.taskNames.any { it.endsWith('Release') } ? 'Release' : 'Debug'
 
+
+
         task.dependsOn ":server:assemble${buildType}"
+
         task.dependsOn ":server:copyServer"
+
     }
+
+
+
+    applicationVariants.all { variant ->
+
+        variant.outputs.all { output ->
+
+            outputFileName = "scrcpy-${variant.versionName}-r${variant.versionCode}-${variant.buildType.name}.apk"
+
+        }
+
+    }
+
 }
 
+
+
 dependencies {
+
     testImplementation 'junit:junit:4.13.2'
+
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
+
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+
 }
+
+

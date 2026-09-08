@@ -10,9 +10,14 @@ import org.server.scrcpy.wrappers.ServiceManager;
 
 public final class Device {
 
+    private static final int DISPLAY_ID_DEFAULT = 0;
+
     // private final ServiceManager serviceManager = new ServiceManager();
     private ScreenInfo screenInfo;
     private RotationListener rotationListener;
+    private int displayId = DISPLAY_ID_DEFAULT;
+    private int layerStack;
+    private int densityDpi = 160;
 
     public Device(Options options) {
         screenInfo = computeScreenInfo(options.getMaxSize());
@@ -35,6 +40,18 @@ public final class Device {
         return Build.MODEL;
     }
 
+    public int getDisplayId() {
+        return displayId;
+    }
+
+    public int getLayerStack() {
+        return layerStack;
+    }
+
+    public int getDensityDpi() {
+        return densityDpi;
+    }
+
     public synchronized ScreenInfo getScreenInfo() {
         return screenInfo;
     }
@@ -46,28 +63,20 @@ public final class Device {
         // - scale down the great side of the screen to maxSize (if necessary);
         // - scale down the other side so that the aspect ratio is preserved;
         // - round this value to the nearest multiple of 8 (H.264 only accepts multiples of 8)
-        DisplayInfo displayInfo = ServiceManager.getDisplayManager().getDisplayInfo();
+        DisplayInfo displayInfo;
+        try {
+            displayInfo = ServiceManager.getDisplayManager().getDisplayInfo(DISPLAY_ID_DEFAULT);
+        } catch (Exception e) {
+            displayInfo = ServiceManager.getDisplayManager().getDisplayInfo();
+        }
+        displayId = displayInfo.getDisplayId();
+        layerStack = displayInfo.getLayerStack();
+        densityDpi = displayInfo.getDensityDpi();
         boolean rotated = (displayInfo.getRotation() & 1) != 0;
         Size deviceSize = displayInfo.getSize();
-        int w = deviceSize.getWidth() & ~7; // in case it's not a multiple of 8
-        int h = deviceSize.getHeight() & ~7;
-        if (maxSize > 0) {
-            if (BuildConfig.DEBUG && maxSize % 8 != 0) {
-                throw new AssertionError("Max size must be a multiple of 8");
-            }
-            boolean portrait = h > w;
-            int major = portrait ? h : w;
-            int minor = portrait ? w : h;
-            if (major > maxSize) {
-                int minorExact = minor * maxSize / major;
-                // +4 to round the value to the nearest multiple of 8
-                minor = (minorExact + 4) & ~7;
-                major = maxSize;
-            }
-            w = portrait ? minor : major;
-            h = portrait ? major : minor;
-        }
-        Size videoSize = new Size(w, h);
+        Size videoSize = deviceSize.scaleTo(maxSize);
+        Ln.i("Screen size device=" + deviceSize.getWidth() + "x" + deviceSize.getHeight()
+                + " video=" + videoSize.getWidth() + "x" + videoSize.getHeight());
         return new ScreenInfo(deviceSize, videoSize, rotated);
     }
 
@@ -89,7 +98,14 @@ public final class Device {
     }
 
     public boolean injectInputEvent(InputEvent inputEvent, int mode) {
-        return ServiceManager.getInputManager().injectInputEvent(inputEvent, mode);
+        if (!org.server.scrcpy.wrappers.InputManager.setDisplayId(inputEvent, displayId)) {
+            Ln.w("Could not set displayId=" + displayId + " on input event");
+        }
+        boolean ok = ServiceManager.getInputManager().injectInputEvent(inputEvent, mode);
+        if (!ok) {
+            Ln.w("injectInputEvent failed displayId=" + displayId);
+        }
+        return ok;
     }
 
     public boolean isScreenOn() {
@@ -105,16 +121,8 @@ public final class Device {
     }
 
     public Point NewgetPhysicalPoint(Point point) {
-        @SuppressWarnings("checkstyle:HiddenField") // it hides the field on purpose, to read it with a lock
-                ScreenInfo screenInfo = getScreenInfo(); // read with synchronization
-        Size videoSize = screenInfo.getVideoSize();
-//        Size clientVideoSize = position.getScreenSize();
-
-        Size deviceSize = screenInfo.getDeviceSize();
-//        Point point = position.getPoint();
-        int scaledX = point.getX() * deviceSize.getWidth() / videoSize.getWidth();
-        int scaledY = point.getY() * deviceSize.getHeight() / videoSize.getHeight();
-        return new Point(scaledX, scaledY);
+        // Il client mappa già i tocchi in pixel del device remoto.
+        return point;
     }
 
 

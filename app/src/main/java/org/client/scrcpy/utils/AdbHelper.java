@@ -2,6 +2,7 @@ package org.client.scrcpy.utils;
 
 import android.content.Context;
 import android.content.res.AssetManager;
+import android.text.TextUtils;
 import android.util.Log;
 
 import org.client.scrcpy.App;
@@ -148,6 +149,43 @@ public class AdbHelper {
         }
     }
 
+
+    /**
+     * True if the wireless ADB target is listed as {@code device} (not offline/unauthorized).
+     */
+    public static boolean isDeviceOnline(Context mContext, String host, int port) {
+        if (mContext == null || TextUtils.isEmpty(host)) {
+            return false;
+        }
+        String serial = host + ":" + port;
+        if (listedAsOnline(adbCmd(mContext, "devices"), serial)) {
+            return true;
+        }
+        boolean connectFinished = executeWithTimeout(() -> adbCmd(mContext, "connect", serial),
+                4, TimeUnit.SECONDS);
+        if (!connectFinished) {
+            return false;
+        }
+        return listedAsOnline(adbCmd(mContext, "devices"), serial);
+    }
+
+    private static boolean listedAsOnline(String devicesOutput, String serial) {
+        if (TextUtils.isEmpty(devicesOutput) || TextUtils.isEmpty(serial)) {
+            return false;
+        }
+        String[] lines = devicesOutput.split("\\r?\\n");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (!trimmed.startsWith(serial)) {
+                continue;
+            }
+            String rest = trimmed.substring(serial.length()).trim();
+            if ("device".equals(rest) || rest.startsWith("device ") || rest.startsWith("device\t")) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public static String adbCmd(Context mContext, String... cmd) {
         return adbCmd(mContext, true, cmd);

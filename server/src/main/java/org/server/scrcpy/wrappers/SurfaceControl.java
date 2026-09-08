@@ -64,12 +64,8 @@ public final class SurfaceControl {
         }
     }
 
-    public static IBinder createDisplay(String name, boolean secure) {
-        try {
-            return (IBinder) CLASS.getMethod("createDisplay", String.class, boolean.class).invoke(null, name, secure);
-        } catch (Exception e) {
-            throw new AssertionError(e);
-        }
+    public static IBinder createDisplay(String name, boolean secure) throws Exception {
+        return (IBinder) CLASS.getMethod("createDisplay", String.class, boolean.class).invoke(null, name, secure);
     }
 
     public static void destroyDisplay(IBinder displayToken) {

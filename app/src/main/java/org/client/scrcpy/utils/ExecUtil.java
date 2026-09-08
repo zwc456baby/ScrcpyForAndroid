@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Map;
 
@@ -120,8 +121,6 @@ public class ExecUtil {
     public static String adbCommend(String[] cmd, Map<String, String> env, File workDir) {
         Process process = null;
         DataOutputStream os = null;
-        BufferedReader successResult = null;
-        BufferedReader errorResult = null;
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(cmd).directory(workDir);
             Map<String, String> envs = processBuilder.environment();
@@ -131,34 +130,15 @@ public class ExecUtil {
             process = processBuilder.start();
             os = new DataOutputStream(process.getOutputStream());
             os.flush();
-            int result = process.waitFor();
-            // get command result
+            os.close();
+            os = null;
             StringBuilder successMsg = new StringBuilder();
             StringBuilder errorMsg = new StringBuilder();
-            successResult = new BufferedReader(new InputStreamReader(
-                    process.getInputStream()));
-            boolean successFirst = true;
-            errorResult = new BufferedReader(new InputStreamReader(
-                    process.getErrorStream()));
-            boolean errorFirst = true;
-            String s;
-            while ((s = successResult.readLine()) != null) {
-                if (!successFirst) {
-                    successMsg.append("\n");
-                } else {
-                    successFirst = false;
-                }
-                successMsg.append(s);
-            }
-            while ((s = errorResult.readLine()) != null) {
-                if (!errorFirst) {
-                    errorMsg.append("\n");
-                } else {
-                    errorFirst = false;
-                }
-                errorMsg.append(s);
-            }
-            Log.i("Scrcpy", errorMsg.toString());
+            Thread outThread = drainAsync(process.getInputStream(), successMsg, false);
+            Thread errThread = drainAsync(process.getErrorStream(), errorMsg, true);
+            process.waitFor();
+            outThread.join(2000);
+            errThread.join(2000);
             return successMsg.toString();
         } catch (Exception e) {
             Log.i("TaskPrint", e.toString());
@@ -166,12 +146,6 @@ public class ExecUtil {
             try {
                 if (os != null) {
                     os.close();
-                }
-                if (successResult != null) {
-                    successResult.close();
-                }
-                if (errorResult != null) {
-                    errorResult.close();
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -181,6 +155,41 @@ public class ExecUtil {
             }
         }
         return "";
+    }
+
+    private static Thread drainAsync(InputStream stream, StringBuilder sink, boolean logAll) {
+        Thread thread = new Thread(() -> {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+                String line;
+                boolean first = true;
+                while ((line = reader.readLine()) != null) {
+                    synchronized (sink) {
+                        if (!first) {
+                            sink.append('\n');
+                        }
+                        first = false;
+                        sink.append(line);
+                    }
+                    if (logAll || isServerLogLine(line)) {
+                        Log.i("Scrcpy", line);
+                    }
+                }
+            } catch (IOException ignored) {
+            }
+        }, "adb-drain");
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
+    }
+
+    private static boolean isServerLogLine(String line) {
+        return line.startsWith("INFO:")
+                || line.startsWith("ERROR:")
+                || line.startsWith("WARN:")
+                || line.startsWith("DEBUG:")
+                || line.contains("scrcpy")
+                || line.contains("Display:")
+                || line.contains("Encoder");
     }
 
 }

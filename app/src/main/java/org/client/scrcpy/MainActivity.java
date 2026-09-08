@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ClipData;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -12,24 +13,31 @@ import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.hardware.Sensor;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Surface;
+import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -51,6 +59,8 @@ import org.client.scrcpy.usb.UsbAdb;
 import org.client.scrcpy.utils.AdbHelper;
 import org.client.scrcpy.utils.PreUtils;
 import org.client.scrcpy.utils.Progress;
+import org.client.scrcpy.utils.ResolutionHelper;
+import org.client.scrcpy.utils.SessionLog;
 import org.client.scrcpy.utils.ThreadUtils;
 import org.client.scrcpy.utils.Util;
 import org.json.JSONArray;
@@ -79,16 +89,20 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     private SendCommands sendCommands;
     private int videoBitrate;
     private int delayControl;
+    private String videoCodec = Options.CODEC_H264;
+    private String videoEncoder = "";
+    private int videoFrameRate = 60;
     private Context context;
     private String serverAdr = null;
     private SurfaceView surfaceView;
     private Surface surface;
+    private SurfaceHolder.Callback surfaceCallback;
     private Scrcpy scrcpy;
     private long timestamp = 0;
 
     private LinearLayout linearLayout;
 
-    // USB ADB support
+// USB ADB support
     private static final String ACTION_USB_PERMISSION = "org.client.scrcpy.USB_PERMISSION";
     // Marker used in the address field / dropdown to indicate the USB transport.
     private static final String USB_PREFIX = "USB: ";
@@ -113,6 +127,12 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         }
     };
 
+    private boolean autoResolutionEnabled = false;
+    private ResolutionHelper.LimitSource resolutionLimitSource = null;
+
+    private volatile boolean statusMonitorActive = false;
+    private volatile int statusCheckGeneration = 0;
+
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
@@ -125,7 +145,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 }
                 scrcpy.start(surface, Scrcpy.LOCAL_IP + ":" + Scrcpy.LOCAL_FORWART_PORT,
                         screenHeight, screenWidth, delayControl,
-                        PreUtils.get(MainActivity.this, Constant.AUDIO_FORWARD, true));
+                        PreUtils.get(MainActivity.this, Constant.AUDIO_FORWARD, true),
+                        videoCodec);
                 ThreadUtils.workPost(() -> {
                     boolean success = AdbHelper.executeWithTimeout(() -> {
                         while (!scrcpy.check_socket_connection()) {
@@ -145,15 +166,15 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                             Toast.makeText(context, "Connection Timed out 2", Toast.LENGTH_SHORT).show();
                         } else {
                             first_time = false;
-                            // 连接成功后，再把按钮显示出来
-                            set_display_nd_touch();
+                            applyClientOrientationFromRemote();
+                            refreshMirrorLayout();
                             connectSuccessExt();
                         }
                     });
                 });
             } else {
                 scrcpy.setParms(surface, screenWidth, screenHeight);
-                set_display_nd_touch();
+                refreshMirrorLayout();
                 connectSuccessExt();
             }
             // set_display_nd_touch();
@@ -184,11 +205,13 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         } catch (Exception e) {
             e.printStackTrace();
         }
+        if (surfaceView != null && surfaceCallback != null) {
+            surfaceView.getHolder().removeCallback(surfaceCallback);
+            surfaceView = null;
+        }
+        surfaceCallback = null;
         if (surface != null) {
             surface = null;
-        }
-        if (surfaceView != null) {
-            surfaceView = null;
         }
         serviceBound = false;
         scrcpy_main();
@@ -207,6 +230,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         this.context = this;
         usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
         registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+        setTitle(getString(R.string.app_name));
         if (savedInstanceState != null) {
             first_time = savedInstanceState.getBoolean("first_time");
             landscape = savedInstanceState.getBoolean("landscape");
@@ -215,12 +239,11 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             screenHeight = savedInstanceState.getInt("screenHeight");
             screenWidth = savedInstanceState.getInt("screenWidth");
         }
-        // 读取屏幕是横屏、还是竖屏
-        landscape = getApplication().getResources().getConfiguration().orientation
-                != Configuration.ORIENTATION_PORTRAIT;
         if (first_time) {
             scrcpy_main();
         } else {
+            landscape = getResources().getConfiguration().orientation
+                    != Configuration.ORIENTATION_PORTRAIT;
             Log.e("Scrcpy: ", "from onCreate");
             start_screen_copy_magic();
         }
@@ -278,6 +301,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         landscape = false;  // 将模式重新置为 竖屏，模式不正确将导致连接黑屏
         setContentView(R.layout.activity_main);
 
+
         // find view by id
         ScrollView scrollView = findViewById(R.id.main_scroll_view);
         Button startButton = findViewById(R.id.button_start);
@@ -287,13 +311,42 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         sendCommands = new SendCommands();
 
         startButton.setOnClickListener(v -> {
+            stopStatusMonitor();
             getAttributes();
+            SessionLog.i("Start clicked host=" + serverAdr
+                    + " max=" + Math.max(screenHeight, screenWidth)
+                    + " bitrate=" + videoBitrate
+                    + " codec=" + videoCodec
+                    + " encoder=" + videoEncoder
+                    + " fps=" + videoFrameRate);
             if (isUsbSelection(serverAdr)) {
                 connectViaUsb();
             } else {
                 connectScrcpyServer(serverAdr);
             }
         });
+        Button rebootButton = findViewById(R.id.button_reboot);
+        if (rebootButton != null) {
+            rebootButton.setOnClickListener(v -> confirmRebootRemoteDevice());
+        }
+        Button powerOffButton = findViewById(R.id.button_power_off);
+        if (powerOffButton != null) {
+            powerOffButton.setOnClickListener(v -> confirmPowerOffRemoteDevice());
+        }
+        Button shareLogButton = findViewById(R.id.button_share_log);
+        if (shareLogButton != null) {
+            shareLogButton.setOnClickListener(v -> shareSessionLog());
+        }
+        Button adbShellButton = findViewById(R.id.button_adb_shell);
+        if (adbShellButton != null) {
+            adbShellButton.setOnClickListener(v -> {
+                EditText hostEdit = findViewById(R.id.editText_server_host);
+                String device = hostEdit == null ? "" : hostEdit.getText().toString().trim();
+                Intent shellIntent = new Intent(this, AdbShellActivity.class);
+                shellIntent.putExtra(AdbShellActivity.EXTRA_DEVICE, device);
+                startActivity(shellIntent);
+            });
+        }
         btnMoreSettings.setOnClickListener(v -> {
             AutoTransition autoTransition = new AutoTransition();
             TransitionManager.beginDelayedTransition(scrollView, autoTransition);
@@ -316,6 +369,30 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             editText.clearFocus();
             showListPopulWindow(editText);
         });
+
+        editText.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                updateResolutionPreview();
+            }
+        });
+        editText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (statusMonitorActive) {
+                    scheduleStatusCheck(800);
+                }
+            }
+        });
+
+        startStatusMonitor();
 
         // 无头模式，实际上要隐藏掉所有控件，否则会被显示出 ip 地址
         if (headlessMode) {
@@ -358,6 +435,30 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             }
         });
         listPopupWindow.show();
+    }
+
+    private void shareSessionLog() {
+        java.io.File logFile = SessionLog.getFile();
+        if (logFile == null || !logFile.exists() || logFile.length() == 0) {
+            Toast.makeText(this, R.string.share_log_empty, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String subject = getString(R.string.share_log_subject, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE);
+        Uri uri = Uri.parse("content://" + getPackageName() + ".log/session.log");
+        Intent send = new Intent(Intent.ACTION_SEND);
+        send.setType("text/plain");
+        send.putExtra(Intent.EXTRA_SUBJECT, subject);
+        // WhatsApp: solo riassunto ~400 caratteri. Il log intero è l'allegato.
+        send.putExtra(Intent.EXTRA_TEXT, SessionLog.readPreview());
+        send.putExtra(Intent.EXTRA_STREAM, uri);
+        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        send.setClipData(ClipData.newRawUri("scrcpy-session.log", uri));
+        try {
+            startActivity(Intent.createChooser(send, getString(R.string.action_share_log)));
+        } catch (Exception e) {
+            SessionLog.e("Share log failed", e);
+            Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
 
@@ -403,9 +504,15 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         aSwitch1.setChecked(PreUtils.get(context, Constant.CONTROL_NAV, false));
         audioForwardSwitch.setChecked(PreUtils.get(context, Constant.AUDIO_FORWARD, true));
 
-        setSpinner(R.array.options_resolution_values, R.id.spinner_video_resolution, Constant.PREFERENCE_SPINNER_RESOLUTION);
         setSpinner(R.array.options_bitrate_keys, R.id.spinner_video_bitrate, Constant.PREFERENCE_SPINNER_BITRATE);
+        setSpinner(R.array.options_codec_keys, R.id.spinner_video_codec, Constant.PREFERENCE_SPINNER_CODEC);
+        setSpinner(R.array.options_fps_keys, R.id.spinner_video_fps, Constant.PREFERENCE_SPINNER_FPS);
         setSpinner(R.array.options_delay_keys, R.id.delay_control_spinner, Constant.PREFERENCE_SPINNER_DELAY);
+        setupResolutionSpinner();
+
+        EditText encoderEdit = findViewById(R.id.editText_video_encoder);
+        encoderEdit.setText(PreUtils.get(context, Constant.PREFERENCE_VIDEO_ENCODER, ""));
+
         if (aSwitch0.isChecked()) {
             aSwitch1.setClickable(false);
             aSwitch1.setTextColor(Color.GRAY);
@@ -437,6 +544,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 //        float this_dev_height = metrics.heightPixels;
 //        float this_dev_width = metrics.widthPixels;
 
+        if (linearLayout == null || surfaceView == null || scrcpy == null) {
+            return;
+        }
         float this_dev_height = linearLayout.getHeight();
         float this_dev_width = linearLayout.getWidth();
         if (PreUtils.get(context, Constant.CONTROL_NAV, false) &&
@@ -447,35 +557,27 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 this_dev_height = this_dev_height - 96;
             }
         }
-        int[] rem_res = scrcpy.get_remote_device_resolution();
-        int remote_device_height = rem_res[1];
-        int remote_device_width = rem_res[0];
-        float remote_device_aspect_ratio = (float) remote_device_height / remote_device_width;
-
-        if (!landscape) {                                                            //Portrait
-            float this_device_aspect_ratio = this_dev_height / this_dev_width;
-//            Log.d("fuck", "set_display_nd_touch: "+this_device_aspect_ratio);
-            if (remote_device_aspect_ratio > this_device_aspect_ratio) {
-                //TODO
-                float wantWidth = this_dev_height / remote_device_aspect_ratio;
-                int padding = (int) (this_dev_width - wantWidth) / 2;
-                linearLayout.setPadding(padding, 0, padding, 0);
-            } else if (remote_device_aspect_ratio < this_device_aspect_ratio) {
-                linearLayout.setPadding(0, (int) (((this_device_aspect_ratio - remote_device_aspect_ratio) * this_dev_width)), 0, 0);
+        int[] remote = scrcpy.getOrientedRemoteSize(landscape);
+        int remoteW = remote[0];
+        int remoteH = remote[1];
+        if (remoteW <= 0 || remoteH <= 0 || this_dev_width <= 0 || this_dev_height <= 0) {
+            if (!PreUtils.get(context, Constant.CONTROL_NO, false)) {
+                surfaceView.setOnTouchListener((view, event) ->
+                        scrcpy.touchevent(event, landscape, surfaceView.getWidth(), surfaceView.getHeight()));
             }
-
-        } else {                                                                        //Landscape
-            float this_device_aspect_ratio = this_dev_width / this_dev_height;
-//            Log.d("fuck", "set_display_nd_touch_land: "+this_device_aspect_ratio);
-            if (remote_device_aspect_ratio > this_device_aspect_ratio) {
-                float wantHeight = this_dev_width / remote_device_aspect_ratio;
-                int padding = (int) (this_dev_height - wantHeight) / 2;
-                linearLayout.setPadding(0, padding, 0, padding);
-            } else if (remote_device_aspect_ratio < this_device_aspect_ratio) {
-                linearLayout.setPadding(((int) (((this_device_aspect_ratio - remote_device_aspect_ratio) * this_dev_height)) / 2), 0, ((int) (((this_device_aspect_ratio - remote_device_aspect_ratio) * this_dev_height)) / 2), 0);
-            }
-
+            return;
         }
+
+        float scale = Math.min(this_dev_width / remoteW, this_dev_height / remoteH);
+        int contentW = Math.round(remoteW * scale);
+        int contentH = Math.round(remoteH * scale);
+        int padH = Math.max(0, ((int) this_dev_width - contentW) / 2);
+        int padV = Math.max(0, ((int) this_dev_height - contentH) / 2);
+        linearLayout.setPadding(padH, padV, padH, padV);
+        Log.i("Scrcpy", "Fit remote " + remoteW + "x" + remoteH
+                + " into " + (int) this_dev_width + "x" + (int) this_dev_height
+                + " content=" + contentW + "x" + contentH
+                + " pad=" + padH + "," + padV);
         if (!PreUtils.get(context, Constant.CONTROL_NO, false)) {
             // Log.i("Screen", "setOnTouchListener: " + surfaceView.getWidth() + "x" + surfaceView.getHeight());
             surfaceView.setOnTouchListener((view, event) -> scrcpy.touchevent(event, landscape, surfaceView.getWidth(), surfaceView.getHeight()));
@@ -486,6 +588,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             final View backButton = findViewById(R.id.back_button);
             final View homeButton = findViewById(R.id.home_button);
             final View appswitchButton = findViewById(R.id.appswitch_button);
+            final View powerButton = findViewById(R.id.power_button);
 
             if (backButton != null) {
                 backButton.setOnClickListener(v -> scrcpy.sendKeyevent(KeyEvent.KEYCODE_BACK));
@@ -495,6 +598,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             }
             if (appswitchButton != null) {
                 appswitchButton.setOnClickListener(v -> scrcpy.sendKeyevent(KeyEvent.KEYCODE_APP_SWITCH));
+            }
+            if (powerButton != null) {
+                powerButton.setOnClickListener(v -> scrcpy.sendKeyevent(KeyEvent.KEYCODE_POWER));
             }
         }
     }
@@ -524,6 +630,105 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         }
     }
 
+    private void setupResolutionSpinner() {
+        final Spinner spinner = findViewById(R.id.spinner_video_resolution);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                PreUtils.put(context, Constant.PREFERENCE_SPINNER_RESOLUTION, position);
+                updateResolutionPreview();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                PreUtils.put(context, Constant.PREFERENCE_SPINNER_RESOLUTION, 0);
+            }
+        });
+        int selection = PreUtils.get(context, Constant.PREFERENCE_SPINNER_RESOLUTION, 0);
+        if (selection < spinner.getCount()) {
+            spinner.setSelection(selection);
+        } else {
+            spinner.setSelection(0);
+        }
+        updateResolutionPreview();
+    }
+
+    private void updateResolutionPreview() {
+        TextView info = findViewById(R.id.text_resolution_info);
+        Spinner spinner = findViewById(R.id.spinner_video_resolution);
+        if (info == null || spinner == null) {
+            return;
+        }
+        if (spinner.getSelectedItemPosition() != Constant.RESOLUTION_AUTO_INDEX) {
+            info.setVisibility(View.GONE);
+            return;
+        }
+        EditText editText = findViewById(R.id.editText_server_host);
+        String remoteAdr = editText != null ? editText.getText().toString().trim() : "";
+        if (TextUtils.isEmpty(remoteAdr)) {
+            info.setText(R.string.resolution_auto_need_ip);
+            info.setVisibility(View.VISIBLE);
+            return;
+        }
+        info.setText(R.string.resolution_auto_detecting);
+        info.setVisibility(View.VISIBLE);
+        ThreadUtils.workPost(() -> {
+            try {
+                ResolutionHelper.AutoResolution autoResolution =
+                        ResolutionHelper.computeAuto(context, remoteAdr);
+                final String message = formatResolutionMessage(autoResolution, false);
+                ThreadUtils.post(() -> {
+                    if (!isFinishing()) {
+                        updateResolutionInfoText(message);
+                    }
+                });
+            } catch (Exception e) {
+                Log.e("Scrcpy", "Resolution preview failed: " + e.getMessage());
+                ThreadUtils.post(() -> {
+                    if (!isFinishing()) {
+                        info.setText(R.string.resolution_auto_failed);
+                        info.setVisibility(View.VISIBLE);
+                    }
+                });
+            }
+        });
+    }
+
+    private void updateResolutionInfoText(String message) {
+        TextView info = findViewById(R.id.text_resolution_info);
+        if (info == null) {
+            return;
+        }
+        if (TextUtils.isEmpty(message)) {
+            info.setVisibility(View.GONE);
+            return;
+        }
+        info.setText(message);
+        info.setVisibility(View.VISIBLE);
+    }
+
+    private String formatResolutionMessage(ResolutionHelper.AutoResolution autoResolution, boolean activeStream) {
+        if (autoResolution.limitSource == ResolutionHelper.LimitSource.LOCAL) {
+            return getString(activeStream ? R.string.resolution_auto_stream_local : R.string.resolution_auto_local,
+                    autoResolution.displayWidth, autoResolution.displayHeight);
+        }
+        return getString(activeStream ? R.string.resolution_auto_stream_remote : R.string.resolution_auto_remote,
+                autoResolution.displayWidth, autoResolution.displayHeight);
+    }
+
+    private String formatActiveStreamResolutionMessage() {
+        return formatResolutionMessage(
+                new ResolutionHelper.AutoResolution(
+                        Math.max(screenWidth, screenHeight),
+                        screenWidth,
+                        screenHeight,
+                        ResolutionHelper.getLocalMaxDimension(context),
+                        screenWidth,
+                        screenHeight,
+                        resolutionLimitSource),
+                true);
+    }
+
     private void getAttributes() {
 
         final EditText editTextServerHost = findViewById(R.id.editText_server_host);
@@ -537,7 +742,10 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         }
         final Spinner videoResolutionSpinner = findViewById(R.id.spinner_video_resolution);
         final Spinner videoBitrateSpinner = findViewById(R.id.spinner_video_bitrate);
+        final Spinner videoCodecSpinner = findViewById(R.id.spinner_video_codec);
+        final Spinner videoFpsSpinner = findViewById(R.id.spinner_video_fps);
         final Spinner delayControlSpinner = findViewById(R.id.delay_control_spinner);
+        final EditText encoderEdit = findViewById(R.id.editText_video_encoder);
 
         Switch a_Switch0 = findViewById(R.id.switch0);
         Switch a_Switch1 = findViewById(R.id.switch1);
@@ -546,11 +754,28 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         PreUtils.put(context, Constant.CONTROL_NAV, a_Switch1.isChecked());
         PreUtils.put(context, Constant.AUDIO_FORWARD, audioEnableSwitch.isChecked());
 
-        final String[] videoResolutions = getResources().getStringArray(R.array.options_resolution_values)[videoResolutionSpinner.getSelectedItemPosition()].split("x");
-        screenHeight = Integer.parseInt(videoResolutions[0]);
-        screenWidth = Integer.parseInt(videoResolutions[1]);
+        String resolutionValue = getResources().getStringArray(R.array.options_resolution_values)[videoResolutionSpinner.getSelectedItemPosition()];
+        autoResolutionEnabled = videoResolutionSpinner.getSelectedItemPosition() == Constant.RESOLUTION_AUTO_INDEX
+                || "0".equals(resolutionValue) || "auto".equalsIgnoreCase(resolutionValue);
+        resolutionLimitSource = null;
+        if (autoResolutionEnabled) {
+            screenHeight = 0;
+            screenWidth = 0;
+        } else if (resolutionValue.contains("x")) {
+            final String[] videoResolutions = resolutionValue.split("x");
+            screenHeight = Integer.parseInt(videoResolutions[0]);
+            screenWidth = Integer.parseInt(videoResolutions[1]);
+        } else {
+            int maxSize = Integer.parseInt(resolutionValue);
+            screenHeight = maxSize;
+            screenWidth = maxSize;
+        }
         videoBitrate = getResources().getIntArray(R.array.options_bitrate_values)[videoBitrateSpinner.getSelectedItemPosition()];
+        videoCodec = getResources().getStringArray(R.array.options_codec_values)[videoCodecSpinner.getSelectedItemPosition()];
+        videoFrameRate = getResources().getIntArray(R.array.options_fps_values)[videoFpsSpinner.getSelectedItemPosition()];
         delayControl = getResources().getIntArray(R.array.options_delay_values)[delayControlSpinner.getSelectedItemPosition()];
+        videoEncoder = encoderEdit.getText() == null ? "" : encoderEdit.getText().toString().trim();
+        PreUtils.put(context, Constant.PREFERENCE_VIDEO_ENCODER, videoEncoder);
     }
 
     private String[] getHistoryList() {
@@ -611,9 +836,33 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         screenWidth = temp;
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private void start_screen_copy_magic() {
-        setContentView(R.layout.surface);
+    private void syncLandscapeFromConfiguration() {
+        landscape = getResources().getConfiguration().orientation
+                != Configuration.ORIENTATION_PORTRAIT;
+    }
+
+    @SuppressLint("SourceLockedOrientationActivity")
+    private void applyClientOrientationFromRemote() {
+        if (scrcpy == null) {
+            return;
+        }
+        int[] remote = scrcpy.getOrientedRemoteSize(landscape);
+        if (remote[0] <= 0 || remote[1] <= 0) {
+            return;
+        }
+        boolean remoteLandscape = remote[0] > remote[1];
+        landscape = remoteLandscape;
+        result_of_Rotation = true;
+        Log.i("Scrcpy", "Client orientation from remote " + remote[0] + "x" + remote[1]
+                + " landscape=" + remoteLandscape);
+        if (remoteLandscape) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        } else {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        }
+    }
+
+    private void applyMirrorImmersiveMode() {
         final View decorView = getWindow().getDecorView();
         decorView.setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -622,17 +871,120 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                         | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-        surfaceView = findViewById(R.id.decoder_surface);
-        surface = surfaceView.getHolder().getSurface();
+    }
+
+    private void refreshMirrorLayout() {
+        if (linearLayout == null || scrcpy == null) {
+            return;
+        }
+        linearLayout.setPadding(0, 0, 0, 0);
+        linearLayout.post(() -> {
+            if (serviceBound && scrcpy != null) {
+                set_display_nd_touch();
+                if (surfaceView != null) {
+                    Surface currentSurface = surfaceView.getHolder().getSurface();
+                    if (isSurfaceReady(currentSurface)) {
+                        surface = currentSurface;
+                        scrcpy.setParms(surface, screenWidth, screenHeight);
+                    }
+                }
+            }
+        });
+    }
+
+    private void setMirrorContentView() {
+        Configuration overrideConfig = new Configuration(getResources().getConfiguration());
+        overrideConfig.orientation = landscape
+                ? Configuration.ORIENTATION_LANDSCAPE
+                : Configuration.ORIENTATION_PORTRAIT;
+        View root = LayoutInflater.from(createConfigurationContext(overrideConfig))
+                .inflate(R.layout.surface, null);
+        setContentView(root);
+    }
+
+    private void setupNavBar() {
         final LinearLayout nav_bar = findViewById(R.id.nav_button_bar);
+        if (nav_bar == null) {
+            return;
+        }
         if (PreUtils.get(context, Constant.CONTROL_NAV, false) &&
                 !PreUtils.get(context, Constant.CONTROL_NO, false)) {
             nav_bar.setVisibility(LinearLayout.VISIBLE);
         } else {
             nav_bar.setVisibility(LinearLayout.GONE);
         }
+    }
+
+    private void bindMirrorSurfaceHolder() {
+        surfaceView = findViewById(R.id.decoder_surface);
+        if (surfaceView == null) {
+            return;
+        }
+        if (surfaceCallback != null) {
+            surfaceView.getHolder().removeCallback(surfaceCallback);
+        }
+        surfaceCallback = new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                surface = holder.getSurface();
+                if (!serviceBound) {
+                    start_Scrcpy_service();
+                } else if (scrcpy != null && isSurfaceReady(surface)) {
+                    scrcpy.setParms(surface, screenWidth, screenHeight);
+                    refreshMirrorLayout();
+                }
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                surface = holder.getSurface();
+                if (serviceBound && scrcpy != null && isSurfaceReady(surface)) {
+                    scrcpy.setParms(surface, screenWidth, screenHeight);
+                    refreshMirrorLayout();
+                }
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+                surface = null;
+            }
+        };
+        surfaceView.getHolder().addCallback(surfaceCallback);
+    }
+
+    private void setupMirrorContentView() {
+        syncLandscapeFromConfiguration();
+        setMirrorContentView();
+        applyMirrorImmersiveMode();
+        bindMirrorSurfaceHolder();
+        setupNavBar();
         linearLayout = findViewById(R.id.container1);
-        start_Scrcpy_service();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (!first_time && serviceBound) {
+            result_of_Rotation = true;
+            setupMirrorContentView();
+        }
+    }
+
+    private boolean isSurfaceReady(Surface displaySurface) {
+        if (displaySurface == null) {
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return displaySurface.isValid();
+        }
+        return true;
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void start_screen_copy_magic() {
+        stopStatusMonitor();
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
+        setupMirrorContentView();
     }
 
     private void start_Scrcpy_service() {
@@ -641,27 +993,13 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
     }
 
-    @SuppressLint("SourceLockedOrientationActivity")
     @Override
     public void loadNewRotation() {
-        if (first_time) {
-            first_time = false;
-        }
-        try {
-            // 可能会导致重复解绑，所以捕获异常
-            unbindService(serviceConnection);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        serviceBound = false;
-        result_of_Rotation = true;
-        landscape = !landscape;
-        swapDimensions();
-        if (landscape) {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-        } else {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
-        }
+        ThreadUtils.post(() -> {
+            result_of_Rotation = true;
+            applyClientOrientationFromRemote();
+            refreshMirrorLayout();
+        });
     }
 
     @Override
@@ -696,8 +1034,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     @Override
     protected void onStop() {
         super.onStop();
-        if (resumeScrcpy) {
-            // 返回到主页面，属于用户主动断开场景
+        if (resumeScrcpy && !isChangingConfigurations()) {
+            // 返回到主页面，属于用户主动断开场景（旋转屏幕时不断开）
             showMainView(true);
             first_time = true;
         }
@@ -719,6 +1057,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     protected void onPause() {
         super.onPause();
         Log.d("Scrcpy", "onPause: " + serviceBound);
+        if (first_time) {
+            stopStatusMonitor();
+        }
         if (serviceBound && scrcpy != null) {
             scrcpy.pause();
             resumeScrcpy = true;
@@ -728,6 +1069,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     @Override
     protected void onResume() {
         super.onResume();
+        if (first_time) {
+            startStatusMonitor();
+        }
         if (!first_time && !result_of_Rotation) {
             final View decorView = getWindow().getDecorView();
             decorView.setSystemUiVisibility(
@@ -738,8 +1082,13 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                             | View.SYSTEM_UI_FLAG_FULLSCREEN
                             | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
             if (serviceBound) {
-                // 黑屏无需修复， 因为只是自带的配置问题
-                linearLayout = findViewById(R.id.container1);
+                if (surfaceView != null) {
+                    Surface currentSurface = surfaceView.getHolder().getSurface();
+                    if (isSurfaceReady(currentSurface)) {
+                        surface = currentSurface;
+                        scrcpy.setParms(surface, screenWidth, screenHeight);
+                    }
+                }
                 scrcpy.resume();
             }
         }
@@ -797,6 +1146,72 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
     }
 
+    private void confirmRebootRemoteDevice() {
+        getAttributes();
+        if (TextUtils.isEmpty(serverAdr)) {
+            Toast.makeText(context, "Server Address Empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] serverInfo = Util.getServerHostAndPort(serverAdr);
+        String device = serverInfo[0] + ":" + serverInfo[1];
+        Dialog.displayDialog(this,
+                getString(R.string.reboot_title),
+                getString(R.string.reboot_ask, device),
+                () -> rebootRemoteDevice(device),
+                () -> {
+                });
+    }
+
+    private void rebootRemoteDevice(String device) {
+        Progress.showDialog(MainActivity.this, getString(R.string.reboot_wait));
+        ThreadUtils.workPost(() -> {
+            AdbHelper.adbCmd(App.mContext, "connect", device);
+            String result = AdbHelper.adbCmd(App.mContext, "-s", device, "reboot");
+            SessionLog.i("ADB reboot device=" + device + " result=" + result);
+            ThreadUtils.post(() -> {
+                Progress.closeDialog();
+                if (MainActivity.this.isFinishing()) {
+                    return;
+                }
+                Toast.makeText(context, getString(R.string.reboot_sent, device), Toast.LENGTH_SHORT).show();
+                startStatusMonitor();
+            });
+        });
+    }
+
+    private void confirmPowerOffRemoteDevice() {
+        getAttributes();
+        if (TextUtils.isEmpty(serverAdr)) {
+            Toast.makeText(context, "Server Address Empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] serverInfo = Util.getServerHostAndPort(serverAdr);
+        String device = serverInfo[0] + ":" + serverInfo[1];
+        Dialog.displayDialog(this,
+                getString(R.string.power_off_title),
+                getString(R.string.power_off_ask, device),
+                () -> powerOffRemoteDevice(device),
+                () -> {
+                });
+    }
+
+    private void powerOffRemoteDevice(String device) {
+        Progress.showDialog(MainActivity.this, getString(R.string.power_off_wait));
+        ThreadUtils.workPost(() -> {
+            AdbHelper.adbCmd(App.mContext, "connect", device);
+            String result = AdbHelper.adbCmd(App.mContext, "-s", device, "reboot", "-p");
+            SessionLog.i("ADB power off device=" + device + " result=" + result);
+            ThreadUtils.post(() -> {
+                Progress.closeDialog();
+                if (MainActivity.this.isFinishing()) {
+                    return;
+                }
+                Toast.makeText(context, getString(R.string.power_off_sent, device), Toast.LENGTH_SHORT).show();
+                startStatusMonitor();
+            });
+        });
+    }
+
     private void connectScrcpyServer(String serverAdr) {
         if (!TextUtils.isEmpty(serverAdr)) {
             saveHistory(serverAdr);  // 保存到历史记录
@@ -808,12 +1223,28 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             Progress.showDialog(MainActivity.this, getString(R.string.please_wait));
             ThreadUtils.workPost(() -> {
                 AdbHelper.writeAssetsJarServer(App.mContext);
+                if (autoResolutionEnabled) {
+                    ResolutionHelper.AutoResolution autoResolution =
+                            ResolutionHelper.computeAuto(context, serverAdr);
+                    screenWidth = autoResolution.displayWidth;
+                    screenHeight = autoResolution.displayHeight;
+                    resolutionLimitSource = autoResolution.limitSource;
+                    final String resolutionMessage = formatResolutionMessage(autoResolution, false);
+                    ThreadUtils.post(() -> updateResolutionInfoText(resolutionMessage));
+                }
+                Options options = new Options();
+                options.setIp(Scrcpy.LOCAL_IP);
+                options.setMaxSize(Math.max(screenHeight, screenWidth));
+                options.setBitRate(videoBitrate);
+                options.setTunnelForward(true);
+                options.setEnableAudioForward(PreUtils.get(context, Constant.AUDIO_FORWARD, true));
+                options.setVideoCodec(videoCodec);
+                options.setVideoEncoder(videoEncoder);
+                options.setFrameRate(videoFrameRate);
                 SendCommands.CmdStatus sendStatus = sendCommands.SendAdbCommands(context, serverHost,
                         serverPort,
                         localForwardPort,
-                        Scrcpy.LOCAL_IP,
-                        videoBitrate, Math.max(screenHeight, screenWidth),
-                        PreUtils.get(context, Constant.AUDIO_FORWARD, true));
+                        options);
                 if (sendStatus == SendCommands.CmdStatus.SUCCESS) {
                     ThreadUtils.post(() -> {
                         if (!MainActivity.this.isFinishing()) {
@@ -823,14 +1254,87 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                         }
                     });
                 } else {
-                    ThreadUtils.post(Progress::closeDialog);
-                    Toast.makeText(context, "Network OR ADB connection failed", Toast.LENGTH_SHORT).show();
-                    connectExitExt();
+                    ThreadUtils.post(() -> {
+                        Progress.closeDialog();
+                        Toast.makeText(context, "Network OR ADB connection failed", Toast.LENGTH_SHORT).show();
+                        startStatusMonitor();
+                        connectExitExt();
+                    });
                 }
             });
         } else {
             Toast.makeText(context, "Server Address Empty", Toast.LENGTH_SHORT).show();
+            startStatusMonitor();
             connectExitExt();
+        }
+    }
+
+    private void startStatusMonitor() {
+        if (headlessMode || isFinishing()) {
+            return;
+        }
+        View led = findViewById(R.id.status_led);
+        if (led == null) {
+            return;
+        }
+        statusMonitorActive = true;
+        scheduleStatusCheck(0);
+    }
+
+    private void stopStatusMonitor() {
+        statusMonitorActive = false;
+        statusCheckGeneration++;
+    }
+
+    private void scheduleStatusCheck(long delayMs) {
+        final int gen = ++statusCheckGeneration;
+        ThreadUtils.postDelayed(() -> {
+            if (!statusMonitorActive || gen != statusCheckGeneration) {
+                return;
+            }
+            EditText hostEdit = findViewById(R.id.editText_server_host);
+            final String hostText = hostEdit != null ? hostEdit.getText().toString().trim() : "";
+            ThreadUtils.execute(() -> {
+                boolean online = false;
+                if (!TextUtils.isEmpty(hostText)) {
+                    String[] serverInfo = Util.getServerHostAndPort(hostText);
+                    try {
+                        int port = Integer.parseInt(serverInfo[1]);
+                        online = AdbHelper.isDeviceOnline(App.mContext, serverInfo[0], port);
+                    } catch (NumberFormatException ignored) {
+                        online = false;
+                    }
+                }
+                final boolean onlineNow = online;
+                ThreadUtils.post(() -> {
+                    if (!statusMonitorActive || gen != statusCheckGeneration) {
+                        return;
+                    }
+                    applyStatusLed(onlineNow);
+                    scheduleStatusCheck(4000);
+                });
+            });
+        }, delayMs);
+    }
+
+    private void applyStatusLed(boolean online) {
+        View led = findViewById(R.id.status_led);
+        TextView label = findViewById(R.id.status_led_label);
+        if (led == null) {
+            return;
+        }
+        int color = getResources().getColor(online ? R.color.status_online : R.color.status_offline);
+        Drawable background = led.getBackground();
+        if (background instanceof GradientDrawable) {
+            ((GradientDrawable) background.mutate()).setColor(color);
+        } else if (background != null) {
+            background.mutate().setColorFilter(color, android.graphics.PorterDuff.Mode.SRC_ATOP);
+        } else {
+            led.setBackgroundColor(color);
+        }
+        if (label != null) {
+            label.setText(online ? R.string.status_online : R.string.status_offline);
+            label.setTextColor(color);
         }
     }
 
@@ -947,6 +1451,9 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
      */
     protected void connectSuccessExt() {
         Dialog.closeDialogs();
+        if (autoResolutionEnabled && resolutionLimitSource != null) {
+            Toast.makeText(context, formatActiveStreamResolutionMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     protected void connectExitExt() {
