@@ -1,33 +1,40 @@
 <resources>
-    <string name="app_name">Scrcpy for Android</string>
-    <string name="app_subtitle">Mirror and control remote devices</string>
+    <string name="app_name">ScrcpyForAndroid</string>
     <string name="app_title">Scrcpy For Android</string>
 
-    <string name="label_server_ip">Remote Device IP (es. 192.168.1.4 oppure 192.168.1.4:5555)</string>
+    <string name="label_server_ip">Remote Device IP address, For example: 192.168.0.73</string>
     <string name="status_online">Online</string>
     <string name="status_offline">Offline</string>
-    <string name="label_video_resolution">Max size / risoluzione</string>
+    <string name="label_video_resolution">Resolution</string>
     <string name="delay_control">Delay Control</string>
-    <string name="label_video_bitrate">Bitrate (-b)</string>
+    <string name="label_video_bitrate">Bitrate</string>
     <string name="label_video_codec">Video codec</string>
     <string name="label_video_fps">Max FPS</string>
-    <string name="label_video_encoder">Video encoder (opzionale)</string>
-    <string name="hint_video_encoder">es. c2.android.avc.encoder (vuoto = default)</string>
+    <string name="label_video_encoder">Video encoder (optional)</string>
+    <string name="hint_video_encoder">e.g. c2.android.avc.encoder (empty = default)</string>
     <string name="label_x">x</string>
     <string name="action_start">Start</string>
-    <string name="action_reboot">Riavvia Android (ADB)</string>
-    <string name="action_power_off">Spegni Android (ADB)</string>
-    <string name="reboot_title">Riavvio dispositivo</string>
-    <string name="reboot_ask">Riavviare %1$s via ADB?\nIl dispositivo si spegnerà e si riaccenderà.</string>
-    <string name="reboot_wait">Invio comando reboot…</string>
-    <string name="reboot_sent">Comando reboot inviato a %1$s</string>
-    <string name="power_off_title">Spegnimento dispositivo</string>
-    <string name="power_off_ask">Spegnere %1$s via ADB?\nIl dispositivo si spegnerà completamente.</string>
-    <string name="power_off_wait">Invio comando spegnimento…</string>
-    <string name="power_off_sent">Comando spegnimento inviato a %1$s</string>
-    <string name="action_share_log">Invia log (email / WhatsApp / …)</string>
+    <string name="usb_no_device">No USB device detected. Connect a device with a USB cable.</string>
+    <string name="usb_permission_denied">USB permission denied</string>
+    <string name="action_adb_shell">ADB Shell</string>
+    <string name="adb_shell_title">ADB Shell</string>
+    <string name="adb_shell_hint">adb command, e.g. devices / shell ls</string>
+    <string name="adb_shell_run">Run</string>
+    <string name="adb_shell_executing">executing…</string>
+    <string name="adb_shell_prompt">$ </string>
+    <string name="action_reboot">Reboot Android (ADB)</string>
+    <string name="action_power_off">Power off Android (ADB)</string>
+    <string name="reboot_title">Reboot device</string>
+    <string name="reboot_ask">Reboot %1$s via ADB?\nThe device will power off and back on.</string>
+    <string name="reboot_wait">Sending reboot command…</string>
+    <string name="reboot_sent">Reboot command sent to %1$s</string>
+    <string name="power_off_title">Power off device</string>
+    <string name="power_off_ask">Power off %1$s via ADB?\nThe device will shut down completely.</string>
+    <string name="power_off_wait">Sending power off command…</string>
+    <string name="power_off_sent">Power off command sent to %1$s</string>
+    <string name="action_share_log">Share log (email / WhatsApp / …)</string>
     <string name="share_log_subject">Scrcpy log %1$s r%2$d</string>
-    <string name="share_log_empty">Log vuoto</string>
+    <string name="share_log_empty">Log is empty</string>
     <string name="appswitch_button">=</string>
     <string name="home_button">o</string>
     <string name="back_button">\u003C</string>
@@ -59,36 +66,30 @@
     <string name="resolution_auto_stream_local">Streaming %1$dx%2$d (local display limit)</string>
     <string name="resolution_auto_stream_remote">Streaming %1$dx%2$d (remote device limit)</string>
 
-    <!-- 0 = Auto (risoluzione adattata al device remoto) -->
     <string-array name="options_resolution_keys">
-        <item>Auto (nativo)</item>
-        <item>1920 (lato lungo)</item>
-        <item>1600</item>
-        <item>1280</item>
-        <item>1024</item>
-        <item>960</item>
-        <item>800</item>
-        <item>640</item>
+        <item>Auto (native)</item>
         <item>1920x1080</item>
+        <item>1600x720</item>
         <item>1280x720</item>
+        <item>1200x540</item>
+        <item>960x720</item>
+        <item>800x448</item>
         <item>640x360</item>
     </string-array>
+
     <string-array name="options_resolution_values">
         <item>0</item>
-        <item>1920</item>
-        <item>1600</item>
-        <item>1280</item>
-        <item>1024</item>
-        <item>960</item>
-        <item>800</item>
-        <item>640</item>
         <item>1920x1080</item>
+        <item>1600x720</item>
         <item>1280x720</item>
+        <item>1200x540</item>
+        <item>960x720</item>
+        <item>800x448</item>
         <item>640x360</item>
     </string-array>
 
     <string-array name="options_delay_keys">
-        <item>High (100ms)</item>
+        <item>Hight (100ms)</item>
         <item>Medium (60ms)</item>
         <item>Low (30ms)</item>
     </string-array>

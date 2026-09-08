@@ -262,10 +262,6 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         landscape = false;  // 将模式重新置为 竖屏，模式不正确将导致连接黑屏
         setContentView(R.layout.activity_main);
 
-        TextView titleView = findViewById(R.id.app_title);
-        if (titleView != null) {
-            titleView.setText(getString(R.string.app_title) + "  " + BuildConfig.VERSION_NAME + "  r" + BuildConfig.VERSION_CODE);
-        }
 
         // find view by id
         ScrollView scrollView = findViewById(R.id.main_scroll_view);
@@ -297,6 +293,16 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         Button shareLogButton = findViewById(R.id.button_share_log);
         if (shareLogButton != null) {
             shareLogButton.setOnClickListener(v -> shareSessionLog());
+        }
+        Button adbShellButton = findViewById(R.id.button_adb_shell);
+        if (adbShellButton != null) {
+            adbShellButton.setOnClickListener(v -> {
+                EditText hostEdit = findViewById(R.id.editText_server_host);
+                String device = hostEdit == null ? "" : hostEdit.getText().toString().trim();
+                Intent shellIntent = new Intent(this, AdbShellActivity.class);
+                shellIntent.putExtra(AdbShellActivity.EXTRA_DEVICE, device);
+                startActivity(shellIntent);
+            });
         }
         btnMoreSettings.setOnClickListener(v -> {
             AutoTransition autoTransition = new AutoTransition();

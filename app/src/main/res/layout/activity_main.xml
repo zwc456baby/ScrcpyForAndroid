@@ -12,31 +12,19 @@
         android:layout_gravity="top"
         android:background="#3C93F0">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/app_title"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:paddingLeft="16dp"
-            android:paddingRight="16dp">
-
-            <TextView
-                android:id="@+id/app_title"
-                style="@style/AppTitleText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="@string/app_name" />
-
-            <TextView
-                android:id="@+id/app_subtitle"
-                style="@style/AppSubtitleText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:gravity="center"
-                android:text="@string/app_subtitle" />
-        </LinearLayout>
+            android:layout_height="80dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginLeft="10dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="5dp"
+            android:gravity="center_vertical"
+            android:padding="20dp"
+            android:text="Scrcpy For Android"
+            android:textColor="@color/white" />
 
     </FrameLayout>
 
@@ -241,70 +229,6 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/label_video_codec"
-                    android:textAppearance="@android:style/TextAppearance"
-                    android:textColor="@color/white"
-                    android:textSize="16sp" />
-
-                <Spinner
-                    android:id="@+id/spinner_video_codec"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginLeft="20dp"
-                    android:layout_marginRight="20dp"
-                    android:entries="@array/options_codec_keys"
-                    android:minHeight="48dp"
-                    android:textColor="@color/white" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="10dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginRight="10dp"
-                android:background="@color/btn_color_nomal"
-                android:orientation="vertical"
-                android:paddingLeft="10dp"
-                android:paddingTop="5dp"
-                android:paddingRight="10dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/label_video_fps"
-                    android:textAppearance="@android:style/TextAppearance"
-                    android:textColor="@color/white"
-                    android:textSize="16sp" />
-
-                <Spinner
-                    android:id="@+id/spinner_video_fps"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginLeft="20dp"
-                    android:layout_marginRight="20dp"
-                    android:entries="@array/options_fps_keys"
-                    android:minHeight="48dp"
-                    android:textColor="@color/white" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="10dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginRight="10dp"
-                android:background="@color/btn_color_nomal"
-                android:orientation="vertical"
-                android:paddingLeft="10dp"
-                android:paddingTop="5dp"
-                android:paddingRight="10dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
                     android:text="@string/delay_control"
                     android:textAppearance="@android:style/TextAppearance"
                     android:textColor="@color/white"
@@ -389,6 +313,70 @@
                         android:textSize="13sp" />
                 </LinearLayout>
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginRight="10dp"
+                    android:background="@color/btn_color_nomal"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingRight="10dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_video_codec"
+                        android:textAppearance="@android:style/TextAppearance"
+                        android:textColor="@color/white"
+                        android:textSize="16sp" />
+
+                    <Spinner
+                        android:id="@+id/spinner_video_codec"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="20dp"
+                        android:layout_marginRight="20dp"
+                        android:entries="@array/options_codec_keys"
+                        android:minHeight="48dp"
+                        android:textColor="@color/white" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginRight="10dp"
+                    android:background="@color/btn_color_nomal"
+                    android:orientation="vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="5dp"
+                    android:paddingRight="10dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_video_fps"
+                        android:textAppearance="@android:style/TextAppearance"
+                        android:textColor="@color/white"
+                        android:textSize="16sp" />
+
+                    <Spinner
+                        android:id="@+id/spinner_video_fps"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="20dp"
+                        android:layout_marginRight="20dp"
+                        android:entries="@array/options_fps_keys"
+                        android:minHeight="48dp"
+                        android:textColor="@color/white" />
+
+                </LinearLayout>
+
                 <Switch
                     android:id="@+id/switch0"
                     android:layout_width="match_parent"
@@ -449,6 +437,19 @@
                 android:textSize="16sp" />
 
             <Button
+                android:id="@+id/button_adb_shell"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginBottom="20dp"
+                android:background="@drawable/btn_selector"
+                android:text="@string/action_adb_shell"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
+
+            <Button
                 android:id="@+id/button_reboot"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
@@ -458,7 +459,8 @@
                 android:background="@drawable/btn_selector"
                 android:text="@string/action_reboot"
                 android:textColor="@color/white"
-                android:textSize="15sp" />
+                android:textSize="15sp"
+                android:visibility="gone" />
 
             <Button
                 android:id="@+id/button_power_off"
@@ -470,7 +472,8 @@
                 android:background="@drawable/btn_selector"
                 android:text="@string/action_power_off"
                 android:textColor="@color/white"
-                android:textSize="15sp" />
+                android:textSize="15sp"
+                android:visibility="gone" />
 
             <Button
                 android:id="@+id/button_share_log"
@@ -483,7 +486,8 @@
                 android:background="@drawable/btn_selector"
                 android:text="@string/action_share_log"
                 android:textColor="@color/white"
-                android:textSize="15sp" />
+                android:textSize="15sp"
+                android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

@@ -1,20 +1,27 @@
 <resources>
     <string name="app_name">安卓控</string>
-    <string name="app_subtitle">远程设备镜像与控制</string>
     <string name="app_title">Scrcpy For Android</string>
 
-    <string name="label_server_ip">手机的IP地址,例如: 192.168.1.4 或 192.168.1.4:5555</string>
+    <string name="label_server_ip">手机的IP地址,例如: 192.168.0.73</string>
     <string name="status_online">在线</string>
     <string name="status_offline">离线</string>
-    <string name="label_video_resolution">分辨率 / 最大尺寸</string>
+    <string name="label_video_resolution">传输分辨率</string>
     <string name="delay_control">延迟控制</string>
-    <string name="label_video_bitrate">码率 (-b)</string>
+    <string name="label_video_bitrate">带宽码率</string>
     <string name="label_video_codec">视频编码</string>
     <string name="label_video_fps">最大帧率</string>
     <string name="label_video_encoder">视频编码器 (可选)</string>
     <string name="hint_video_encoder">例如 c2.android.avc.encoder (空=默认)</string>
     <string name="label_x">x</string>
     <string name="action_start">启动连接</string>
+    <string name="usb_no_device">未检测到 USB 设备，请用数据线连接设备。</string>
+    <string name="usb_permission_denied">USB 权限被拒绝</string>
+    <string name="action_adb_shell">ADB 命令行</string>
+    <string name="adb_shell_title">ADB 命令行</string>
+    <string name="adb_shell_hint">输入 adb 命令，例如 devices / shell ls</string>
+    <string name="adb_shell_run">执行</string>
+    <string name="adb_shell_executing">正在执行…</string>
+    <string name="adb_shell_prompt">$ </string>
     <string name="action_reboot">重启 Android (ADB)</string>
     <string name="action_power_off">关机 Android (ADB)</string>
     <string name="reboot_title">重启设备</string>

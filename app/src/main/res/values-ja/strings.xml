@@ -1,20 +1,27 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="app_name">Scrcpy for Android</string>
-  <string name="app_subtitle">リモートデバイスをミラーリング</string>
+  <string name="app_name">ScrcpyForAndroid</string>
   <string name="app_title">Scrcpy For Android</string>
-  <string name="label_server_ip">リモートデバイス IP（例: 192.168.1.4 または 192.168.1.4:5555）</string>
+  <string name="label_server_ip">リモートデバイス IP アドレス、例: 192.168.0.73</string>
   <string name="status_online">オンライン</string>
   <string name="status_offline">オフライン</string>
-  <string name="label_video_resolution">解像度 / 最大サイズ</string>
+  <string name="label_video_resolution">解像度</string>
   <string name="delay_control">遅延コントロール</string>
-  <string name="label_video_bitrate">ビットレート (-b)</string>
+  <string name="label_video_bitrate">ビットレート</string>
   <string name="label_video_codec">ビデオコーデック</string>
   <string name="label_video_fps">最大 FPS</string>
   <string name="label_video_encoder">ビデオエンコーダ（任意）</string>
   <string name="hint_video_encoder">例: c2.android.avc.encoder（空=デフォルト）</string>
   <string name="label_x">x</string>
   <string name="action_start">開始</string>
+  <string name="usb_no_device">USB デバイスが見つかりません。USB ケーブルで接続してください。</string>
+  <string name="usb_permission_denied">USB 権限が拒否されました</string>
+  <string name="action_adb_shell">ADB Shell</string>
+  <string name="adb_shell_title">ADB Shell</string>
+  <string name="adb_shell_hint">adb コマンド（例: devices / shell ls）</string>
+  <string name="adb_shell_run">実行</string>
+  <string name="adb_shell_executing">実行中…</string>
+  <string name="adb_shell_prompt">$ </string>
   <string name="action_reboot">Android を再起動 (ADB)</string>
   <string name="action_power_off">Android を電源オフ (ADB)</string>
   <string name="reboot_title">デバイス再起動</string>
@@ -55,29 +62,23 @@
 
 
   <string-array name="options_resolution_keys">
-    <item>自動 (ネイティブ)</item>
-    <item>1920</item>
-    <item>1600</item>
-    <item>1280</item>
-    <item>1024</item>
-    <item>960</item>
-    <item>800</item>
-    <item>640</item>
+    <item>自動</item>
     <item>1920x1080</item>
+    <item>1600x720</item>
     <item>1280x720</item>
+    <item>1200x540</item>
+    <item>960x720</item>
+    <item>800x448</item>
     <item>640x360</item>
   </string-array>
   <string-array name="options_resolution_values">
     <item>0</item>
-    <item>1920</item>
-    <item>1600</item>
-    <item>1280</item>
-    <item>1024</item>
-    <item>960</item>
-    <item>800</item>
-    <item>640</item>
     <item>1920x1080</item>
+    <item>1600x720</item>
     <item>1280x720</item>
+    <item>1200x540</item>
+    <item>960x720</item>
+    <item>800x448</item>
     <item>640x360</item>
   </string-array>
   <string-array name="options_delay_keys">
