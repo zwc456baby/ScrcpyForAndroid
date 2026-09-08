@@ -1,6 +1,4 @@
-name: Build Android ADB (ARM)
-
-# 由 gemini 辅助生成
+name: Build Android ADB (4 ABIs)
 
 on:
   workflow_dispatch: # 支持手动点击运行
@@ -13,111 +11,132 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build cmake g++-multilib python3-pip
+          sudo apt-get install -y ninja-build cmake bison flex python3-pip
 
-      - name: Setup Android NDK
+      - name: Setup Android NDK r27b
         uses: android-actions/setup-android@v3
         with:
-          ndk: 27.1.12297006 # 对应 r27b 版本的具体 Build Number
-
+          ndk: 27.1.12297006 # r27b
       - name: Verify NDK Path
         run: |
-          echo "ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
-          if [ -z "$ANDROID_NDK_HOME" ]; then
-            echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> $GITHUB_ENV
-          fi
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006" >> $GITHUB_ENV
+          test -f "$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" && echo "NDK toolchain OK"
 
-      - name: Fetch AOSP Source
-        working-directory: ./platform-tools
-        run: python3 get_source.py --tags platform-tools-35.0.2
-
-      # 5. 替代原有的 Build Host Protoc 步骤
-      # 必须自行编译 protobuf，否则头文件无法匹配
-#      - name: Install System Protoc
-#        run: |
-#          sudo apt-get update
-#          sudo apt-get install -y protobuf-compiler
-#
-#          PROTOC_ABS_PATH=$(which protoc)
-#          echo "PROTOC_PATH=$PROTOC_ABS_PATH" >> $GITHUB_ENV
-#
-#          # 打印版本信息，方便调试
-#          echo "Using system protoc version:"
-#          protoc --version
-
-      # --- fix CMakeLists.txt ---
-      - name: Patch Protobuf CMakeLists
+      - name: Download Host Protoc 3.21.12 (prebuilt)
         run: |
-          TARGET_FILE="platform-tools/src/protobuf/CMakeLists.txt"
-          echo "Patching $TARGET_FILE..."
-          
-          # 使用 sed 在 ${protobuf_SOURCE_DIR}/src 后面插入一行新的路径
-          # 注意：这里匹配原有的行并在其后添加新行
-          sed -i 's|${protobuf_SOURCE_DIR}/src)|${protobuf_SOURCE_DIR}/src\n  ${protobuf_SOURCE_DIR}/android)|' "$TARGET_FILE"
-          
-          # 打印修改后的部分内容以供确认
-          echo "Verification of Patch:"
-          grep -C 3 "protobuf_SOURCE_DIR" "$TARGET_FILE"
+          curl -L --retry 5 --retry-delay 3 -o /tmp/protoc.zip \
+            https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
+          unzip -o /tmp/protoc.zip -d /tmp/protoc
+          /tmp/protoc/bin/protoc --version
+          echo "PROTOC_PATH=/tmp/protoc/bin/protoc" >> $GITHUB_ENV
 
-      - name: Build Host Protoc
-        run: |
-          cd platform-tools/src/protobuf
-          mkdir -p build && cd build
-          cmake -GNinja -Dprotobuf_BUILD_TESTS=OFF ..
-          ninja -j$(nproc)
-
-          PROTOC_ABS_PATH=$(realpath protoc)
-          echo "PROTOC_PATH=$PROTOC_ABS_PATH" >> $GITHUB_ENV
-          echo "Generated Protoc at: $PROTOC_ABS_PATH"
-
-      - name: Build ADB (arm64-v8a)
+      - name: Fetch AOSP Source (with tag fallback)
         working-directory: ./platform-tools
         run: |
-          export CXXFLAGS="-std=c++14 -Wno-vla -Wno-error"
-          export CFLAGS="-Wno-vla -Wno-error"
-          
-          python3 build.py \
-            --ndk=$ANDROID_NDK_HOME \
-            --abi=arm64-v8a \
-            --build=build/aarch64 \
-            --protoc=${{ env.PROTOC_PATH }} \
-            --target=adb
+          set -e
+          TAG=platform-tools-35.0.2
+          # 注意: repos.json 中的 zopfli / build 两个仓库没有该 tag，
+          # get_source.py 会直接失败，这里做 tag 缺失时回退默认分支
+          python3 -c "import json,sys; [print(r['path'], r['url']) for r in json.load(open('repos.json'))]" | while read -r path url; do
+            if [ ! -d "$path/.git" ]; then
+              mkdir -p "$path"
+              if git ls-remote --exit-code "$url" "refs/tags/$TAG" >/dev/null 2>&1; then
+                echo "cloning $path @ $TAG"
+                git clone -c advice.detachedHead=false --depth 1 --branch "$TAG" "$url" "$path"
+              else
+                echo "tag $TAG missing for $path, fallback to default branch"
+                git clone -c advice.detachedHead=false --depth 1 "$url" "$path"
+              fi
+            fi
+          done
+          test -d src/adb/.git && test -d src/core/.git && echo "sources fetched OK"
 
-      - name: Build ADB (armeabi-v7a)
+      - name: Apply Patches
         working-directory: ./platform-tools
         run: |
-          python3 build.py \
-            --ndk=$ANDROID_NDK_HOME \
-            --abi=armeabi-v7a \
-            --build=build/arm \
-            --protoc=${{ env.PROTOC_PATH }} \
-            --target=adb
+          set -e
+          SRC=src
+          # --- misc copies (get_source.py patches()) ---
+          mkdir -p $SRC/incremental_delivery/sysprop/include
+          cp patches/misc/IncrementalProperties.sysprop.h $SRC/incremental_delivery/sysprop/include/
+          cp patches/misc/IncrementalProperties.sysprop.cpp $SRC/incremental_delivery/sysprop/
+          mkdir -p $SRC/adb/fastdeploy/deployagent
+          cp patches/misc/deployagent.inc patches/misc/deployagentscript.inc $SRC/adb/fastdeploy/deployagent/
+          mkdir -p $SRC/soong/cc/libbuildversion/include
+          cp patches/misc/platform_tools_version.h $SRC/soong/cc/libbuildversion/include/
 
-#      - name: Organize Artifacts
-#        run: |
-#          mkdir -p dist/arm64-v8a dist/armeabi-v7a
-#          cp platform-tools/build/aarch64/platform-tools/adb dist/arm64-v8a/libadb.so
-#          cp platform-tools/build/arm/platform-tools/adb dist/armeabi-v7a/libadb.so
-#
-#          file dist/arm64-v8a/libadb.so
-#          file dist/armeabi-v7a/libadb.so
+          # --- protobuf: NDK 下 log 链接换成 android include 目录 (protobuf_CMakeLists.txt.patch) ---
+          sed -i 's|target_link_libraries(libprotobuf-lite PRIVATE log)|target_include_directories(libprotobuf-lite PUBLIC ${protobuf_SOURCE_DIR}/android)|' $SRC/protobuf/cmake/libprotobuf-lite.cmake
+          sed -i 's|target_link_libraries(libprotobuf PRIVATE log)|target_include_directories(libprotobuf PRIVATE ${protobuf_SOURCE_DIR}/android)|' $SRC/protobuf/cmake/libprotobuf.cmake
+          sed -i 's|${protobuf_SOURCE_DIR}/src)|${protobuf_SOURCE_DIR}/src\n  ${protobuf_SOURCE_DIR}/config)|' $SRC/protobuf/CMakeLists.txt
 
-#      - name: Upload Result
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: adb-binaries-for-android
-#          path: dist/
-#           retention-days: 1
+          # --- aapt2 proto import 修正 (proto/*.patch + get_source.py sed) ---
+          sed -i 's|frameworks/base/tools/aapt2/Configuration.proto|Configuration.proto|g' \
+            $SRC/base/tools/aapt2/Resources.proto $SRC/base/tools/aapt2/ResourcesInternal.proto
+          sed -i 's|frameworks/base/tools/aapt2/Resources.proto|Resources.proto|g' \
+            $SRC/base/tools/aapt2/ApkInfo.proto $SRC/base/tools/aapt2/ResourcesInternal.proto
 
-      - name: Upload Full Build Directory
+          # --- art: 必须提供 stack overflow gap 宏 (instruction_set.h.patch) ---
+          sed -i 's|namespace instruction_set_details {|namespace instruction_set_details {\n#define ART_STACK_OVERFLOW_GAP_arm 16384\n#define ART_STACK_OVERFLOW_GAP_arm64 16384\n#define ART_STACK_OVERFLOW_GAP_riscv64 16384\n#define ART_STACK_OVERFLOW_GAP_x86 16384\n#define ART_STACK_OVERFLOW_GAP_x86_64 20480\n#define ART_FRAME_SIZE_LIMIT 10000\n|' \
+            $SRC/art/libartbase/arch/instruction_set.h
+
+          # --- openscreen: -fno-exceptions 下 packaged_task<void() noexcept> 编译失败 (task_runner.h.patch) ---
+          sed -i '/#if __has_feature(cxx_exceptions)/,/^#endif/d' $SRC/openscreen/platform/api/task_runner.h
+          sed -i '/implicit instantiation of undefined template/a\  using Task = std::packaged_task<void()>;' $SRC/openscreen/platform/api/task_runner.h
+
+          # --- libutils: system/graphics.h 在 35.0.2 已移入 core/libsystem ---
+          sed -i 's|${SRC}/core/libutils/include|${SRC}/core/libutils/include\n    ${SRC}/core/libsystem/include|' lib/libutils.cmake
+
+          # --- boringssl 的 googletest 是 submodule，git clone 不会填充，补符号链接 ---
+          rm -rf $SRC/boringssl/src/third_party/googletest
+          ln -sfn ../../../googletest $SRC/boringssl/src/third_party/googletest
+
+          echo "patches applied"
+
+      - name: Build ADB (4 ABIs)
+        working-directory: ./platform-tools
+        run: |
+          set -e
+          for ABI in arm64-v8a armeabi-v7a x86 x86_64; do
+            case "$ABI" in
+              arm64-v8a)  DIR=aarch64 ;;
+              armeabi-v7a) DIR=arm ;;
+              x86)        DIR=i686 ;;
+              x86_64)     DIR=x86_64 ;;
+            esac
+            echo "==================== building $ABI ===================="
+            python3 build.py \
+              --ndk="$ANDROID_NDK_HOME" \
+              --abi="$ABI" \
+              --build="build/$DIR" \
+              --protoc="$PROTOC_PATH" \
+              --target=adb
+          done
+
+      - name: Organize Artifacts
+        run: |
+          set -e
+          mkdir -p dist
+          for ABI in arm64-v8a armeabi-v7a x86 x86_64; do
+            case "$ABI" in
+              arm64-v8a)  DIR=aarch64 ;;
+              armeabi-v7a) DIR=arm ;;
+              x86)        DIR=i686 ;;
+              x86_64)     DIR=x86_64 ;;
+            esac
+            mkdir -p "dist/$ABI"
+            cp "platform-tools/build/$DIR/bin/platform-tools/adb" "dist/$ABI/libadb.so"
+            file "dist/$ABI/libadb.so"
+          done
+
+      - name: Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: adb-binaries-for-android
-          path: platform-tools/build/
-          retention-days: 1
+          name: libadb-android-4abi
+          path: dist/
+          retention-days: 7
