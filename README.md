@@ -6,16 +6,14 @@
 
 - Scrcpy for Android uses the ADB interface to connect to the android device to be mirrored, either over the network (WiFi) or over a USB cable.
 
-
-
 ## Download
 
-[scrcpy-release.apk](https://github.com/zwc456baby/ScrcpyForAndroid/releases)
+- [IzzyOnDroid](https://apt.izzysoft.de/fdroid/index/apk/org.client.scrcpy)
+- [GitHub APK: scrcpy-release.apk](https://github.com/zwc456baby/ScrcpyForAndroid/releases)
 
+## Screenshot
 
 ![home](home.jpg)
-
-
 
 ## Instructions to use (WiFi)
 
