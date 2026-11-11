@@ -194,16 +194,6 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginRight="6dp"
-            android:fontFamily="monospace"
-            android:text="adb"
-            android:textColor="#3C93F0"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
         <EditText
             android:id="@+id/edit_command"
             android:layout_width="0dp"
@@ -229,19 +219,6 @@
             android:paddingLeft="12dp"
             android:paddingRight="12dp"
             android:text="@string/dialog_adb_terminal_run"
-            android:textColor="@color/white"
-            android:textSize="13sp" />
-
-        <Button
-            android:id="@+id/btn_clear"
-            android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:layout_marginLeft="6dp"
-            android:background="@drawable/btn_selector"
-            android:minHeight="0dp"
-            android:paddingLeft="10dp"
-            android:paddingRight="10dp"
-            android:text="@string/dialog_adb_terminal_clear"
             android:textColor="@color/white"
             android:textSize="13sp" />
     </LinearLayout>

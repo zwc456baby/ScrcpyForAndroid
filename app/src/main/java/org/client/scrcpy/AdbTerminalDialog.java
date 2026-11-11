@@ -43,7 +43,6 @@ public class AdbTerminalDialog extends Dialog {
     private ProgressBar consoleProgress;
     private EditText editCommand;
     private Button btnRun;
-    private Button btnClear;
     private LinearLayout layoutApplyIp;
     private TextView tvDetectedIp;
     private Button btnApplyIp;
@@ -84,7 +83,6 @@ public class AdbTerminalDialog extends Dialog {
         consoleProgress = findViewById(R.id.console_progress);
         editCommand = findViewById(R.id.edit_command);
         btnRun = findViewById(R.id.btn_run);
-        btnClear = findViewById(R.id.btn_clear);
         layoutApplyIp = findViewById(R.id.layout_apply_ip);
         tvDetectedIp = findViewById(R.id.tv_detected_ip);
         btnApplyIp = findViewById(R.id.btn_apply_ip);
@@ -95,7 +93,6 @@ public class AdbTerminalDialog extends Dialog {
         }
 
         btnRun.setOnClickListener(v -> runCurrentCommand());
-        btnClear.setOnClickListener(v -> clearConsole());
 
         editCommand.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO) {
@@ -175,6 +172,7 @@ public class AdbTerminalDialog extends Dialog {
             return;
         }
         executeCommand(cmd);
+        editCommand.setText("");
     }
 
     private void executeCommand(String cmd) {
@@ -240,11 +238,6 @@ public class AdbTerminalDialog extends Dialog {
             btnRun.setEnabled(!running);
             btnRun.setText(running ? "..." : activity.getString(R.string.dialog_adb_terminal_run));
         }
-    }
-
-    private void clearConsole() {
-        consoleBuffer.clear();
-        consoleOutput.setText("");
     }
 
     private void appendLine(String line, int color) {

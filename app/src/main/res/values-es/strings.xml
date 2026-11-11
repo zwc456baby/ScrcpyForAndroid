@@ -22,7 +22,6 @@
   <string name="dialog_adb_terminal_subtitle">Ejecutar comandos adb directamente (pair, connect, devices)</string>
   <string name="dialog_adb_terminal_hint">ej.: pair 192.168.1.5:37000 123456</string>
   <string name="dialog_adb_terminal_run">Ejecutar</string>
-  <string name="dialog_adb_terminal_clear">Limpiar</string>
   <string name="dialog_adb_terminal_apply_ip">Usar como destino</string>
   <string name="adb_shell_title">Terminal ADB</string>
   <string name="adb_shell_hint">Comando ADB (ej.: devices / shell ls)</string>

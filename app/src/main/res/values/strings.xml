@@ -26,7 +26,6 @@
     <string name="dialog_adb_terminal_subtitle">Run adb commands directly (pair, connect, devices, tcpip)</string>
     <string name="dialog_adb_terminal_hint">e.g. pair 192.168.1.5:37000 123456</string>
     <string name="dialog_adb_terminal_run">Run</string>
-    <string name="dialog_adb_terminal_clear">Clear</string>
     <string name="dialog_adb_terminal_apply_ip">Use as Target</string>
     <string name="adb_shell_title">ADB Shell</string>
     <string name="adb_shell_hint">adb command, e.g. devices / shell ls</string>

@@ -22,7 +22,6 @@
     <string name="dialog_adb_terminal_subtitle">直接运行 adb 命令 (pair, connect, devices, tcpip)</string>
     <string name="dialog_adb_terminal_hint">例如: pair 192.168.1.5:37000 123456</string>
     <string name="dialog_adb_terminal_run">运行</string>
-    <string name="dialog_adb_terminal_clear">清空</string>
     <string name="dialog_adb_terminal_apply_ip">设为目标地址</string>
     <string name="adb_shell_title">ADB 命令行</string>
     <string name="adb_shell_hint">输入 adb 命令，例如 devices / shell ls</string>
