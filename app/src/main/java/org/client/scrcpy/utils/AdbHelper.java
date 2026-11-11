@@ -1,7 +1,6 @@
 package org.client.scrcpy.utils;
 
 import android.content.Context;
-import android.content.res.AssetManager;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -296,27 +295,29 @@ public class AdbHelper {
         return args;
     }
 
-    public static void writeAssetsJarServer(Context context) {
-        AssetManager assetManager = context.getAssets();
-        Log.d("Scrcpy", "File scrcpy-server.jar try write");
-        try {
-            InputStream input_Stream = assetManager.open("scrcpy-server.jar");
-            byte[] buffer = new byte[input_Stream.available()];
-            input_Stream.read(buffer);
-            File scrcpyDir = context.getExternalFilesDir("scrcpy");
-            if (!scrcpyDir.exists()) {
-                scrcpyDir.mkdirs();
-            }
-            FileOutputStream outputStream = new FileOutputStream(new File(
-                    context.getExternalFilesDir("scrcpy"), "scrcpy-server.jar"
-            ));
-            outputStream.write(buffer);
-            outputStream.flush();
-            outputStream.close();
+    /**
+     * scrcpy-server.jar is kept in internal storage. External app directories can
+     * be missing or unavailable (for example when getExternalFilesDir() returns
+     * null because the ROM never sets sys.user.0.ce_available), which previously
+     * aborted the whole connect flow.
+     */
+    public static File getServerJarFile(Context context) {
+        return new File(context.getFilesDir(), "scrcpy-server.jar");
+    }
 
-            // fileBase64 = Base64.encode(buffer, 2);
+    public static void writeAssetsJarServer(Context context) {
+        Log.d("Scrcpy", "File scrcpy-server.jar try write");
+        File jarFile = getServerJarFile(context);
+        try (InputStream inputStream = context.getAssets().open("scrcpy-server.jar");
+             FileOutputStream outputStream = new FileOutputStream(jarFile)) {
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, length);
+            }
+            outputStream.flush();
         } catch (IOException e) {
-            Log.d("Scrcpy", "File scrcpy-server.jar write faild");
+            Log.e("Scrcpy", "File scrcpy-server.jar write failed", e);
         }
     }
 

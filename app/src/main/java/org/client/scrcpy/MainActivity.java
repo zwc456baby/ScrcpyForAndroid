@@ -1547,7 +1547,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 } catch (Exception ignored) {
                 }
                 AdbHelper.writeAssetsJarServer(App.mContext);
-                File jar = new File(context.getExternalFilesDir("scrcpy"), "scrcpy-server.jar");
+                File jar = AdbHelper.getServerJarFile(context);
                 adb = UsbAdb.connect(context, usbManager, device);
                 adb.startServerAndForward(jar, Scrcpy.LOCAL_FORWART_PORT, Scrcpy.LOCAL_IP,
                         videoBitrate, Math.max(screenHeight, screenWidth),

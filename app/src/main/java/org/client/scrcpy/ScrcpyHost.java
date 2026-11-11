@@ -4,7 +4,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.res.AssetManager;
 import android.os.IBinder;
 import android.util.Base64;
 import android.util.Log;
@@ -12,6 +11,8 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceView;
 import android.widget.Toast;
+
+import org.client.scrcpy.utils.AdbHelper;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -98,22 +99,14 @@ public class ScrcpyHost implements Scrcpy.ServiceCallbacks {
 
 
     private void exectJar() {
-        AssetManager assetManager = context.getAssets();
         try {
-            InputStream input_Stream = assetManager.open("scrcpy-server.jar");
+            InputStream input_Stream = context.getAssets().open("scrcpy-server.jar");
             byte[] buffer = new byte[input_Stream.available()];
             input_Stream.read(buffer);
 
-            File scrcpyDir = context.getExternalFilesDir("scrcpy");
-            if (!scrcpyDir.exists()) {
-                scrcpyDir.mkdirs();
-            }
-            FileOutputStream outputStream = new FileOutputStream(new File(
-                    context.getExternalFilesDir("scrcpy"), "scrcpy-server.jar"
-            ));
-            Log.d("Scrcpy", "Path: " + new File(
-                    context.getExternalFilesDir("scrcpy"), "scrcpy-server.jar"
-            ));
+            File jarFile = AdbHelper.getServerJarFile(context);
+            FileOutputStream outputStream = new FileOutputStream(jarFile);
+            Log.d("Scrcpy", "Path: " + jarFile);
             outputStream.write(buffer);
             outputStream.flush();
             outputStream.close();

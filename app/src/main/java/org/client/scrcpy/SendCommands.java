@@ -8,7 +8,6 @@ import android.util.Log;
 import org.client.scrcpy.utils.AdbHelper;
 import org.client.scrcpy.utils.ThreadUtils;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -113,10 +112,9 @@ public class SendCommands {
     private CmdStatus startPortForward(Context context, String ip, int port, int serverport) {
         Log.i("Scrcpy", "try connect to ip: " + ip);
         AdbHelper.adbCmd(App.mContext, "connect", ip + ":" + port);
-        // 复制server端到可执行目录
-        String pushRet = AdbHelper.adbCmd(App.mContext, "-s", ip + ":" + port, "push", new File(
-                context.getExternalFilesDir("scrcpy"), "scrcpy-server.jar"
-        ).getAbsolutePath(), "/data/local/tmp/scrcpy-server.jar");
+        // 复制server端到可执行目录（内部存储，避免外部存储不可用时连接失败）
+        String pushRet = AdbHelper.adbCmd(App.mContext, "-s", ip + ":" + port, "push",
+                AdbHelper.getServerJarFile(context).getAbsolutePath(), "/data/local/tmp/scrcpy-server.jar");
 
         Log.i("Scrcpy", "pushRet: " + pushRet);
 

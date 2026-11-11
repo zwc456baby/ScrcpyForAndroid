@@ -34,9 +34,9 @@ public final class SessionLog {
 
     public static void resetAndStart(Context context) {
         synchronized (LOCK) {
-            File dir = new File(context.getExternalFilesDir(null), "logs");
+            File dir = new File(context.getFilesDir(), "logs");
             if (!dir.exists() && !dir.mkdirs()) {
-                dir = context.getFilesDir();
+                dir = context.getCacheDir();
             }
             logFile = new File(dir, "session.log");
             try (FileOutputStream out = new FileOutputStream(logFile, false)) {
