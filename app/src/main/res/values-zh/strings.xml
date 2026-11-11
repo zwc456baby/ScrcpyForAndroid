@@ -17,6 +17,13 @@
     <string name="usb_no_device">未检测到 USB 设备，请用数据线连接设备。</string>
     <string name="usb_permission_denied">USB 权限被拒绝</string>
     <string name="action_adb_shell">ADB 命令行</string>
+    <string name="action_adb_terminal">ADB 终端 / 配对</string>
+    <string name="dialog_adb_terminal_title">ADB 终端 (配对 / 命令)</string>
+    <string name="dialog_adb_terminal_subtitle">直接运行 adb 命令 (pair, connect, devices, tcpip)</string>
+    <string name="dialog_adb_terminal_hint">例如: pair 192.168.1.5:37000 123456</string>
+    <string name="dialog_adb_terminal_run">运行</string>
+    <string name="dialog_adb_terminal_clear">清空</string>
+    <string name="dialog_adb_terminal_apply_ip">设为目标地址</string>
     <string name="adb_shell_title">ADB 命令行</string>
     <string name="adb_shell_hint">输入 adb 命令，例如 devices / shell ls</string>
     <string name="adb_shell_run">执行</string>

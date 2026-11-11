@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="app_name">ScrcpyForAndroid</string>
   <string name="app_title">Scrcpy para Android</string>
@@ -17,6 +17,13 @@
   <string name="usb_no_device">No se encontró ningún dispositivo USB. Conecta el dispositivo mediante un cable USB.</string>
   <string name="usb_permission_denied">Permiso USB denegado</string>
   <string name="action_adb_shell">Terminal ADB</string>
+  <string name="action_adb_terminal">Terminal ADB / Emparejar</string>
+  <string name="dialog_adb_terminal_title">Terminal ADB (Emparejar / Comandos)</string>
+  <string name="dialog_adb_terminal_subtitle">Ejecutar comandos adb directamente (pair, connect, devices)</string>
+  <string name="dialog_adb_terminal_hint">ej.: pair 192.168.1.5:37000 123456</string>
+  <string name="dialog_adb_terminal_run">Ejecutar</string>
+  <string name="dialog_adb_terminal_clear">Limpiar</string>
+  <string name="dialog_adb_terminal_apply_ip">Usar como destino</string>
   <string name="adb_shell_title">Terminal ADB</string>
   <string name="adb_shell_hint">Comando ADB (ej.: devices / shell ls)</string>
   <string name="adb_shell_run">Ejecutar</string>
