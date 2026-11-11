@@ -202,7 +202,7 @@
             android:background="@drawable/edit_background"
             android:hint="@string/dialog_adb_terminal_hint"
             android:importantForAutofill="no"
-            android:inputType="text"
+            android:inputType="textNoSuggestions"
             android:paddingLeft="8dp"
             android:paddingRight="8dp"
             android:textColor="@color/white"
