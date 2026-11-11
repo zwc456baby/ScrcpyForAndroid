@@ -31,6 +31,7 @@ import android.widget.Toast;
 import org.client.scrcpy.utils.ThreadUtils;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -199,6 +200,8 @@ public class AdbShellActivity extends Activity {
                 env.put("HOME", getFilesDir().getAbsolutePath());
                 env.put("TMPDIR", getCacheDir().getAbsolutePath());
                 env.put("ANDROID_ADB_SERVER_PORT", "5137");
+                File keyDir = new File(getFilesDir().getAbsolutePath(), ".android");
+                env.put("ADB_VENDOR_KEYS", keyDir.getAbsolutePath());
                 shellProcess = builder.start();
                 shellInput = shellProcess.getOutputStream();
                 appendLine("connected to " + (TextUtils.isEmpty(device) ? "default device" : device)
@@ -270,15 +273,15 @@ public class AdbShellActivity extends Activity {
             return;
         }
         exited = true;
-        appendLine("shell exited", COLOR_OUTPUT);
+        appendLine("\n[Process completed / exited]", COLOR_OUTPUT);
         cleanup();
-        finish();
     }
 
-    @SuppressLint("MissingSuperCall")
     @Override
     public void onBackPressed() {
-        onShellExited();
+        super.onBackPressed();
+        cleanup();
+        finish();
     }
 
     private void cleanup() {
@@ -329,7 +332,12 @@ public class AdbShellActivity extends Activity {
     protected void onResume() {
         super.onResume();
         try {
-            registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+            if (Build.VERSION.SDK_INT >= 33) {
+                // 4 is Context.RECEIVER_NOT_EXPORTED in API 33+
+                registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION), 4);
+            } else {
+                registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+            }
         } catch (Exception ignored) {
         }
     }

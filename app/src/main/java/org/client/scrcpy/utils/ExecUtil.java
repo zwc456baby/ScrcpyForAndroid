@@ -182,6 +182,73 @@ public class ExecUtil {
         return thread;
     }
 
+    public interface AdbOutputListener {
+        void onLine(String line, boolean isError);
+        void onComplete(int exitCode);
+    }
+
+    public static int execAdbWithListener(String[] cmd, Map<String, String> env, File workDir, AdbOutputListener listener) {
+        Process process = null;
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder(cmd).directory(workDir);
+            Map<String, String> envs = processBuilder.environment();
+            for (String s : env.keySet()) {
+                envs.put(s, env.get(s));
+            }
+            process = processBuilder.start();
+
+            try {
+                process.getOutputStream().close();
+            } catch (IOException ignored) {
+            }
+
+            Thread outThread = streamLinesAsync(process.getInputStream(), false, listener);
+            Thread errThread = streamLinesAsync(process.getErrorStream(), true, listener);
+
+            int exitCode = process.waitFor();
+            if (outThread != null) {
+                outThread.join(2000);
+            }
+            if (errThread != null) {
+                errThread.join(2000);
+            }
+
+            if (listener != null) {
+                listener.onComplete(exitCode);
+            }
+            return exitCode;
+        } catch (Exception e) {
+            Log.e("ExecUtil", "execAdbWithListener failed: " + e.getMessage(), e);
+            if (listener != null) {
+                listener.onLine("Error: " + e.getMessage(), true);
+                listener.onComplete(-1);
+            }
+            return -1;
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
+        }
+    }
+
+    private static Thread streamLinesAsync(InputStream stream, boolean isError, AdbOutputListener listener) {
+        Thread thread = new Thread(() -> {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (listener != null) {
+                        listener.onLine(line, isError);
+                    }
+                    Log.i("ScrcpyAdb", (isError ? "[ERR] " : "[OUT] ") + line);
+                }
+            } catch (IOException ignored) {
+            }
+        }, isError ? "adb-err-drain" : "adb-out-drain");
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
+    }
+
     private static boolean isServerLogLine(String line) {
         return line.startsWith("INFO:")
                 || line.startsWith("ERROR:")

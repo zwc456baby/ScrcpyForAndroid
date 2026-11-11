@@ -216,6 +216,86 @@ public class AdbHelper {
         return ExecUtil.adbCommend(cmds, env, mContext.getFilesDir());
     }
 
+    public static void runCustomAdbCommand(Context mContext, String commandLine, ExecUtil.AdbOutputListener listener) {
+        ThreadUtils.execute(() -> {
+            if (mContext == null) {
+                if (listener != null) {
+                    listener.onLine("Context is null", true);
+                    listener.onComplete(-1);
+                }
+                return;
+            }
+            if (TextUtils.isEmpty(commandLine)) {
+                if (listener != null) {
+                    listener.onLine("Empty command", true);
+                    listener.onComplete(-1);
+                }
+                return;
+            }
+
+            java.util.List<String> tokens = parseCommandArgs(commandLine.trim());
+            if (tokens.isEmpty()) {
+                if (listener != null) {
+                    listener.onLine("Empty command", true);
+                    listener.onComplete(-1);
+                }
+                return;
+            }
+
+            // Remove leading "adb" if user typed "adb pair ..." or "./adb pair ..."
+            if (tokens.get(0).equalsIgnoreCase("adb") || tokens.get(0).equalsIgnoreCase("./adb")) {
+                tokens.remove(0);
+            }
+
+            if (tokens.isEmpty()) {
+                if (listener != null) {
+                    listener.onLine("Please specify an ADB command (e.g. pair, connect, devices)", true);
+                    listener.onComplete(-1);
+                }
+                return;
+            }
+
+            String adbBinary = mContext.getApplicationInfo().nativeLibraryDir + "/libadb.so";
+            java.util.List<String> fullCmd = new java.util.ArrayList<>();
+            fullCmd.add(adbBinary);
+            fullCmd.addAll(tokens);
+
+            HashMap<String, String> env = new HashMap<>();
+            env.put("HOME", mContext.getFilesDir().getAbsolutePath());
+            env.put("TMPDIR", mContext.getCacheDir().getAbsolutePath());
+            env.put("ANDROID_ADB_SERVER_PORT", "5137");
+            File keyDir = new File(mContext.getFilesDir().getAbsolutePath(), ".android");
+            env.put("ADB_VENDOR_KEYS", keyDir.getAbsolutePath());
+
+            genKeyFile(mContext);
+
+            ExecUtil.execAdbWithListener(fullCmd.toArray(new String[0]), env, mContext.getFilesDir(), listener);
+        });
+    }
+
+    public static java.util.List<String> parseCommandArgs(String cmd) {
+        java.util.List<String> args = new java.util.ArrayList<>();
+        boolean inQuotes = false;
+        StringBuilder current = new StringBuilder();
+        for (int i = 0; i < cmd.length(); i++) {
+            char c = cmd.charAt(i);
+            if (c == '\"' || c == '\'') {
+                inQuotes = !inQuotes;
+            } else if (Character.isWhitespace(c) && !inQuotes) {
+                if (current.length() > 0) {
+                    args.add(current.toString());
+                    current.setLength(0);
+                }
+            } else {
+                current.append(c);
+            }
+        }
+        if (current.length() > 0) {
+            args.add(current.toString());
+        }
+        return args;
+    }
+
     public static void writeAssetsJarServer(Context context) {
         AssetManager assetManager = context.getAssets();
         Log.d("Scrcpy", "File scrcpy-server.jar try write");

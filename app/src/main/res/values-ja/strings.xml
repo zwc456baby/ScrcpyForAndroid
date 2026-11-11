@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="app_name">ScrcpyForAndroid</string>
   <string name="app_title">Scrcpy For Android</string>
@@ -17,6 +17,13 @@
   <string name="usb_no_device">USB デバイスが見つかりません。USB ケーブルで接続してください。</string>
   <string name="usb_permission_denied">USB 権限が拒否されました</string>
   <string name="action_adb_shell">ADB Shell</string>
+  <string name="action_adb_terminal">ADB ターミナル / ペアリング</string>
+  <string name="dialog_adb_terminal_title">ADB ターミナル (ペア / コマンド)</string>
+  <string name="dialog_adb_terminal_subtitle">adb コマンドを直接実行 (pair, connect, devices, tcpip)</string>
+  <string name="dialog_adb_terminal_hint">例: pair 192.168.1.5:37000 123456</string>
+  <string name="dialog_adb_terminal_run">実行</string>
+  <string name="dialog_adb_terminal_clear">クリア</string>
+  <string name="dialog_adb_terminal_apply_ip">対象IPに設定</string>
   <string name="adb_shell_title">ADB Shell</string>
   <string name="adb_shell_hint">adb コマンド（例: devices / shell ls）</string>
   <string name="adb_shell_run">実行</string>

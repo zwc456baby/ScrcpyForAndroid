@@ -436,18 +436,37 @@
                 android:textColor="@color/white"
                 android:textSize="16sp" />
 
-            <Button
-                android:id="@+id/button_adb_shell"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
+                android:layout_height="wrap_content"
                 android:layout_marginLeft="10dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginRight="10dp"
                 android:layout_marginBottom="20dp"
-                android:background="@drawable/btn_selector"
-                android:text="@string/action_adb_shell"
-                android:textColor="@color/white"
-                android:textSize="15sp" />
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/button_adb_terminal"
+                    android:layout_width="0dp"
+                    android:layout_height="50dp"
+                    android:layout_marginRight="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/btn_selector"
+                    android:text="@string/action_adb_terminal"
+                    android:textColor="@color/white"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/button_adb_shell"
+                    android:layout_width="0dp"
+                    android:layout_height="50dp"
+                    android:layout_marginLeft="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/btn_selector"
+                    android:text="@string/action_adb_shell"
+                    android:textColor="@color/white"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
             <Button
                 android:id="@+id/button_reboot"

@@ -346,6 +346,19 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         if (shareLogButton != null) {
             shareLogButton.setOnClickListener(v -> shareSessionLog());
         }
+        Button adbTerminalButton = findViewById(R.id.button_adb_terminal);
+        if (adbTerminalButton != null) {
+            adbTerminalButton.setOnClickListener(v -> {
+                EditText hostEdit = findViewById(R.id.editText_server_host);
+                String currentHost = hostEdit == null ? "" : hostEdit.getText().toString().trim();
+                AdbTerminalDialog dialog = new AdbTerminalDialog(this, currentHost, ipWithPort -> {
+                    if (hostEdit != null && !TextUtils.isEmpty(ipWithPort)) {
+                        hostEdit.setText(ipWithPort);
+                    }
+                });
+                dialog.show();
+            });
+        }
         Button adbShellButton = findViewById(R.id.button_adb_shell);
         if (adbShellButton != null) {
             adbShellButton.setOnClickListener(v -> {
