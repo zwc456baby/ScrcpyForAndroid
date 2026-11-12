@@ -1,0 +1,16 @@
+--- a/src/base/libs/androidfw/include/androidfw/CombinedIterator.h
++++ b/src/base/libs/androidfw/include/androidfw/CombinedIterator.h
+@@ -62,6 +62,11 @@
+   friend void swap(RefPair& l, RefPair& r) {
+     using std::swap;
+     swap(l.first, r.first);
+     swap(l.second, r.second);
+   }
++  friend void swap(RefPair&& l, RefPair&& r) {
++    using std::swap;
++    swap(l.first, r.first);
++    swap(l.second, r.second);
++  }
+ };
+ 
+ template <class It1, class It2>

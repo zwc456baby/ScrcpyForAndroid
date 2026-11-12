@@ -1,0 +1,10 @@
+--- a/src/logging/liblog/include/android/log.h
++++ b/src/logging/liblog/include/android/log.h
+@@ -300,7 +300,7 @@
+  */
+ void __android_log_logd_logger_with_timestamp(const struct __android_log_message* log_message,
+-                                              const struct timespec* timestamp) __INTRODUCED_IN(37);
++                                              const struct timespec* timestamp);
+ 
+ /**
+  * Writes the log message to stderr.  This is an {@link __android_logger_function} and can be provided to

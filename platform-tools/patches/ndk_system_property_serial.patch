@@ -1,0 +1,39 @@
+--- a/src/libbase/properties.cpp
++++ b/src/libbase/properties.cpp
+@@ -17,6 +17,11 @@
+ 
+ #if defined(__BIONIC__)
+ #include <sys/system_properties.h>
++
++// These are exported by bionic libc but are not declared by the NDK headers.
++// libbase uses them to cache property reads (CachedProperty).
++extern "C" uint32_t __system_property_area_serial();
++extern "C" uint32_t __system_property_serial(const prop_info* pi);
+ #endif
+ 
+ #include <algorithm>
+--- a/src/logging/liblog/properties.cpp
++++ b/src/logging/liblog/properties.cpp
+@@ -26,6 +26,10 @@
+ #ifdef __ANDROID__
+ #include <sys/system_properties.h>
+ 
++// Exported by bionic libc, but not declared by the NDK headers.
++extern "C" uint32_t __system_property_area_serial();
++extern "C" uint32_t __system_property_serial(const prop_info* pi);
++
+ static pthread_mutex_t lock_loggable = PTHREAD_MUTEX_INITIALIZER;
+ 
+ static bool trylock() {
+--- a/src/core/libcutils/trace-dev.inc
++++ b/src/core/libcutils/trace-dev.inc
+@@ -37,6 +37,9 @@
+ 
+ #if defined(__BIONIC__)
+ #include <sys/system_properties.h>
++
++// Exported by bionic libc, but not declared by the NDK headers.
++extern "C" uint32_t __system_property_serial(const prop_info* pi);
+ #endif
+ 
+ /**

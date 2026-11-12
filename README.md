@@ -63,3 +63,19 @@
 - [scrcpy-android](https://gitlab.com/las2mile/scrcpy-android)
 - [scrcpy](https://github.com/Genymobile/scrcpy)
 
+## Bundled adb binary
+
+The `libadb.so` files in `app/src/main/jniLibs/` are built from
+[lzhiyong/android-sdk-tools](https://github.com/lzhiyong/android-sdk-tools).
+
+That project's sources are vendored in [`platform-tools/`](platform-tools)
+(see [VENDOR.md](platform-tools/VENDOR.md)), and
+[`.github/workflows/build-adb.yml`](.github/workflows/build-adb.yml) builds the four ABIs
+from the vendored copy. The build no longer downloads the upstream repository,
+so force-pushes there can't break it.
+
+> Note: the current build targets Android 11 (API 30) because AOSP 36's
+> `libbase`/`liblog` use fdsan and other APIs that are not available on older
+> releases. The existing `jniLibs` binaries are API 24, so adb already did not
+> run on Android 7.0 and below.
+

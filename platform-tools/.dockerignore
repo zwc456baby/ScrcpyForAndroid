@@ -1,0 +1,6 @@
+# the image doesn't copy the project, keep the build context small
+.git
+src
+build
+dist
+host-tools
