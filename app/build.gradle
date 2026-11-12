@@ -4,22 +4,27 @@ apply plugin: 'com.android.application'
 
 android {
 
-    namespace 'org.client.scrcpy'
+    namespace = 'org.client.scrcpy'
     flavorDimensions = ["default"]
 
-    compileSdkVersion 31
-    buildToolsVersion "35.0.0"
+    compileSdk = 31
 
     buildFeatures {
-        buildConfig true
+        buildConfig = true
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     defaultConfig {
-        minSdkVersion 21
-        targetSdkVersion 31
-        versionCode 37
-        versionName "1.7.0"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        minSdk = 21
+        targetSdk = 31
+        versionCode = 37
+        versionName = "1.7.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -45,9 +50,9 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled = false
             if (file("scrcpy.jks").exists()) {
-                signingConfig signingConfigs.release
+                signingConfig = signingConfigs.release
             }
         }
     }
@@ -56,7 +61,7 @@ android {
 
     productFlavors {
         scrcpy {
-            applicationId "org.client.scrcpy"
+            applicationId = "org.client.scrcpy"
         }
     }
 
@@ -71,9 +76,14 @@ android {
         task.dependsOn ":server:copyServer"
     }
 
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            outputFileName = "scrcpy-${variant.versionName}-r${variant.versionCode}-${variant.buildType.name}.apk"
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            def versionName = output.versionName.get()
+            def versionCode = output.versionCode.get()
+            output.outputFileName.set("scrcpy-${versionName}-r${versionCode}-${variant.buildType}.apk")
         }
     }
 }
@@ -83,8 +93,8 @@ android {
 dependencies {
     testImplementation 'junit:junit:4.13.2'
 
-    androidTestImplementation 'com.android.support.test:runner:1.0.2'
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }
 
 
