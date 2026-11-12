@@ -7,6 +7,7 @@
     android:orientation="vertical">
 
     <FrameLayout
+        android:id="@+id/app_header"
         android:layout_width="match_parent"
         android:layout_height="80dp"
         android:layout_gravity="top"

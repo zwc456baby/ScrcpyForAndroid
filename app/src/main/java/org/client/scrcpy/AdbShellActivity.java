@@ -29,6 +29,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.client.scrcpy.utils.ThreadUtils;
+import org.client.scrcpy.utils.Util;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -81,6 +82,7 @@ public class AdbShellActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_adb_shell);
+        Util.applyStatusBarInset(findViewById(R.id.adb_shell_header), 48, null);
 
         outputView = findViewById(R.id.adb_shell_output);
         inputView = findViewById(R.id.adb_shell_input);

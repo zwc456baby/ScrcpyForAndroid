@@ -314,6 +314,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         landscape = false;  // 将模式重新置为 竖屏，模式不正确将导致连接黑屏
         setContentView(R.layout.activity_main);
+        Util.applyStatusBarInset(findViewById(R.id.app_header), 80,
+                findViewById(R.id.main_scroll_view));
 
 
         // find view by id

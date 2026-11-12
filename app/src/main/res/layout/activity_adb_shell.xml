@@ -6,6 +6,7 @@
     android:orientation="vertical">
 
     <FrameLayout
+        android:id="@+id/adb_shell_header"
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:background="@color/status_bar">
