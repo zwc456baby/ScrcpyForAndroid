@@ -143,7 +143,7 @@ def resolveNdkDir = {
     }
     def sdkDir = System.getenv('ANDROID_HOME') ?: System.getenv('ANDROID_SDK_ROOT') ?: localProperties.getProperty('sdk.dir')
     if (sdkDir) {
-        candidates << "${sdkDir}/ndk/26.1.10909125"
+        candidates << "${sdkDir}/ndk/26.3.11579264"
         def ndkRoot = new File("${sdkDir}/ndk")
         if (ndkRoot.isDirectory()) {
             def versions = ndkRoot.listFiles()?.findAll { it.isDirectory() }
@@ -155,7 +155,7 @@ def resolveNdkDir = {
             }
         }
     }
-    candidates << "${System.getProperty('user.home')}/Library/Android/sdk/ndk/26.1.10909125"
+    candidates << "${System.getProperty('user.home')}/Library/Android/sdk/ndk/26.3.11579264"
     def found = candidates.find { candidate ->
         candidate && new File(candidate, 'build/cmake/android.toolchain.cmake').exists()
     }

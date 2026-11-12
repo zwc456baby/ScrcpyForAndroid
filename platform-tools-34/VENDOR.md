@@ -9,7 +9,7 @@
 - AOSP 源码 tag：`platform-tools-34.0.0`
 - 构建版本：`34.0.0`
 - 目标 API：`24`（Android 7.0）
-- NDK：`r26d`（本机用 26.1.10909125 验证通过）
+- NDK：`r26d` = `26.3.11579264`
 - C++ 标准：C++20
 - 许可证：Apache License 2.0，见 [LICENSE.txt](LICENSE.txt)
 
