@@ -1,0 +1,50 @@
+--- a/base/libs/androidfw/include/androidfw/StringPiece.h	2023-09-20 10:22:22.808291321 +0800
++++ b/base/libs/androidfw/include/androidfw/StringPiece.h	2023-09-20 10:20:04.808277573 +0800
+@@ -68,13 +68,19 @@
+   size_t size() const;
+   bool empty() const;
+   std::basic_string<TChar> to_string() const;
++
+   bool contains(const BasicStringPiece<TChar>& rhs) const;
+   int compare(const BasicStringPiece<TChar>& rhs) const;
+   bool operator<(const BasicStringPiece<TChar>& rhs) const;
+   bool operator>(const BasicStringPiece<TChar>& rhs) const;
+   bool operator==(const BasicStringPiece<TChar>& rhs) const;
+   bool operator!=(const BasicStringPiece<TChar>& rhs) const;
+- 
++  // for std::basic_string
++  bool operator<(const std::basic_string<TChar>& rhs) const;
++  bool operator>(const std::basic_string<TChar>& rhs) const;
++  bool operator==(const std::basic_string<TChar>& rhs) const;
++  bool operator!=(const std::basic_string<TChar>& rhs) const;
++
+   const_iterator begin() const;
+   const_iterator end() const;
+ 
+@@ -256,6 +262,26 @@
+ }
+ 
++ template <typename TChar>
++inline bool BasicStringPiece<TChar>::operator<(const std::basic_string<TChar>& rhs) const {
++    return compare(BasicStringPiece(rhs)) < 0;
++}
++
++template <typename TChar>
++inline bool BasicStringPiece<TChar>::operator>(const std::basic_string<TChar>& rhs) const {
++    return compare(BasicStringPiece(rhs)) > 0;
++}
++
++template <typename TChar>
++inline bool BasicStringPiece<TChar>::operator==(const std::basic_string<TChar>& rhs) const {
++    return compare(BasicStringPiece(rhs)) == 0;
++}
++
++template <typename TChar>
++inline bool BasicStringPiece<TChar>::operator!=(const std::basic_string<TChar>& rhs) const{
++    return compare(BasicStringPiece(rhs)) != 0;
++}
++
+template <typename TChar>
+ inline typename BasicStringPiece<TChar>::const_iterator BasicStringPiece<TChar>::begin() const {
+   return data_;
+ }

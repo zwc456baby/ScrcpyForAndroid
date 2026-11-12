@@ -1,0 +1,50 @@
+--- a/src/base/libs/androidfw/AssetManager2.cpp
++++ b/src/base/libs/androidfw/AssetManager2.cpp
+@@ -1399,24 +1399,24 @@
+   return 0;
+ }
+ 
+-std::unique_ptr<Theme> AssetManager2::NewTheme() {
+-  constexpr size_t kInitialReserveSize = 32;
+-  auto theme = std::unique_ptr<Theme>(new Theme(this));
+-  theme->entries_.reserve(kInitialReserveSize);
+-  return theme;
+-}
+-
+-Theme::Theme(AssetManager2* asset_manager) : asset_manager_(asset_manager) {
+-}
+-
+-Theme::~Theme() = default;
+-
+ struct Theme::Entry {
+   uint32_t attr_res_id;
+   ApkAssetsCookie cookie;
+   uint32_t type_spec_flags;
+   Res_value value;
+ };
++
++std::unique_ptr<Theme> AssetManager2::NewTheme() {
++  // Theme::Entry is defined below this function; the NDK libc++ rejects
++  // vector<incomplete type>::reserve() here, so skip the initial reserve.
++  auto theme = std::unique_ptr<Theme>(new Theme(this));
++  return theme;
++}
++
++Theme::Theme(AssetManager2* asset_manager) : asset_manager_(asset_manager) {
++}
++
++Theme::~Theme() = default;
+ 
+ namespace {
+ struct ThemeEntryKeyComparer {
+--- a/src/base/libs/androidfw/include/androidfw/LoadedArsc.h
++++ b/src/base/libs/androidfw/include/androidfw/LoadedArsc.h
+@@ -295,7 +295,7 @@
+   std::unordered_map<uint8_t, TypeSpec> type_specs_;
+   ByteBucketArray<uint32_t> resource_ids_;
+   std::vector<DynamicPackageEntry> dynamic_package_map_;
+-  std::vector<const std::pair<OverlayableInfo, std::unordered_set<uint32_t>>> overlayable_infos_;
++  std::vector<std::pair<OverlayableInfo, std::unordered_set<uint32_t>>> overlayable_infos_;
+   std::map<uint32_t, uint32_t> alias_id_map_;
+ 
+   // A map of overlayable name to actor

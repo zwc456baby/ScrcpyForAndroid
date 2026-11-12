@@ -1,0 +1,94 @@
+--- a/src/libbase/include/android-base/unique_fd.h
++++ b/src/libbase/include/android-base/unique_fd.h
+@@ -31,6 +31,18 @@
+ 
+ #if defined(__BIONIC__)
+ #include <android/fdsan.h>
++
++#if __ANDROID_API__ < 29
++// The NDK hides the fdsan declarations below API 29.  They are weak in
++// bionic and DefaultCloser checks them for null before calling.
++extern "C" {
++uint64_t android_fdsan_create_owner_tag(enum android_fdsan_owner_type type,
++                                        uint64_t tag) __attribute__((weak));
++void android_fdsan_exchange_owner_tag(int fd, uint64_t expected_tag,
++                                      uint64_t new_tag) __attribute__((weak));
++int android_fdsan_close_with_tag(int fd, uint64_t tag) __attribute__((weak));
++}
++#endif
+ #endif
+ #if !defined(_WIN32) && !defined(__TRUSTY__)
+ #include <sys/socket.h>
+--- a/src/core/libcutils/native_handle.cpp
++++ b/src/core/libcutils/native_handle.cpp
+@@ -25,6 +25,18 @@
+ // Needs to come after stdlib includes to capture the __BIONIC__ definition
+ #ifdef __BIONIC__
+ #include <android/fdsan.h>
++
++#if __ANDROID_API__ < 29
++// The NDK hides the fdsan declarations below API 29; they are weak in bionic.
++extern "C" {
++uint64_t android_fdsan_create_owner_tag(enum android_fdsan_owner_type type,
++                                        uint64_t tag) __attribute__((weak));
++uint64_t android_fdsan_get_owner_tag(int fd) __attribute__((weak));
++int android_fdsan_close_with_tag(int fd, uint64_t tag) __attribute__((weak));
++void android_fdsan_exchange_owner_tag(int fd, uint64_t expected_tag,
++                                      uint64_t new_tag) __attribute__((weak));
++}
++#endif
+ #endif
+ 
+ namespace {
+--- a/src/core/libcutils/native_handle.cpp
++++ b/src/core/libcutils/native_handle.cpp
+@@ -46,6 +46,7 @@
+ #endif  // !__BIONIC__
+ 
+ uint64_t get_fdsan_tag(const native_handle_t* handle) {
++    if (android_fdsan_create_owner_tag == nullptr) return 0;
+     return android_fdsan_create_owner_tag(ANDROID_FDSAN_OWNER_TYPE_NATIVE_HANDLE,
+                                           reinterpret_cast<uint64_t>(handle));
+ }
+--- a/src/core/libcutils/native_handle.cpp
++++ b/src/core/libcutils/native_handle.cpp
+@@ -57,7 +57,8 @@
+ 
+     const int numFds = h->numFds;
+     uint64_t tag;
+-    if (allowUntagged && numFds > 0 && android_fdsan_get_owner_tag(h->data[0]) == 0) {
++    if (allowUntagged && numFds > 0 && android_fdsan_get_owner_tag != nullptr &&
++        android_fdsan_get_owner_tag(h->data[0]) == 0) {
+         tag = 0;
+     } else {
+         tag = get_fdsan_tag(h);
+--- a/src/core/libcutils/native_handle.cpp
++++ b/src/core/libcutils/native_handle.cpp
+@@ -64,7 +64,11 @@
+     }
+     int saved_errno = errno;
+     for (int i = 0; i < numFds; ++i) {
+-        android_fdsan_close_with_tag(h->data[i], tag);
++        if (android_fdsan_close_with_tag != nullptr) {
++            android_fdsan_close_with_tag(h->data[i], tag);
++        } else {
++            close(h->data[i]);
++        }
+     }
+     errno = saved_errno;
+     return 0;
+--- a/src/core/libcutils/native_handle.cpp
++++ b/src/core/libcutils/native_handle.cpp
+@@ -73,9 +73,11 @@
+ void swap_fdsan_tags(const native_handle_t* handle, uint64_t expected_tag, uint64_t new_tag) {
+     if (!handle || handle->version != sizeof(native_handle_t)) return;
+ 
++    if (android_fdsan_exchange_owner_tag == nullptr) return;
+     for (int i = 0; i < handle->numFds; i++) {
+         // allow for idempotence to make the APIs easier to use
+-        if (android_fdsan_get_owner_tag(handle->data[i]) != new_tag) {
++        if (android_fdsan_get_owner_tag == nullptr ||
++            android_fdsan_get_owner_tag(handle->data[i]) != new_tag) {
+             android_fdsan_exchange_owner_tag(handle->data[i], expected_tag, new_tag);
+         }
+     }

@@ -1,0 +1,11 @@
+--- a/src/base/tools/aapt2/Resources.proto	2022-04-25 21:16:28.379940190 +0800
++++ b/src/base/tools/aapt2/Resources.proto	2022-04-23 17:27:52.064693044 +0800
+@@ -16,7 +16,7 @@
+ 
+ syntax = "proto3";
+ 
+-import "frameworks/base/tools/aapt2/Configuration.proto";
++import "Configuration.proto";
+ 
+ package aapt.pb;
+ 

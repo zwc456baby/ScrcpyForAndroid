@@ -1,0 +1,23 @@
+--- a/art/libartbase/base/mem_map.cc	2023-09-20 10:50:35.491362353 +0800
++++ b/art/libartbase/base/mem_map.cc	2023-09-20 10:49:26.071355437 +0800
+@@ -45,6 +45,20 @@
+ #define MAP_ANONYMOUS MAP_ANON
+ #endif
+ 
++// see aosp/build/soong/android/config.go
++/*
++func (c *config) LibartImgHostBaseAddress() string {
++	return "0x60000000"
++}
++
++func (c *config) LibartImgDeviceBaseAddress() string {
++	return "0x70000000"
++}
++*/
++
++// device base address
++#define ART_BASE_ADDRESS 0x70000000
++
+ namespace art {
+ 
+ using android::base::StringPrintf;

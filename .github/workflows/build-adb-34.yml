@@ -1,0 +1,111 @@
+name: Build Android ADB 34.0.0 (API 24, 4 ABIs)
+
+on:
+  workflow_dispatch: # 支持手动点击运行
+    inputs:
+      api_level:
+        description: 'Android API level of the produced adb binary'
+        required: false
+        default: '24'
+
+permissions:
+  contents: read
+
+env:
+  # 独立的 34.0.0 构建树，保留 API 24 兼容性
+  SDK_TOOLS_DIR: platform-tools-34
+  # platform-tools 34.0.0 对应 AOSP 的 platform-tools-34.0.0 tag
+  AOSP_TAG: platform-tools-34.0.0
+  # 34.0.0 使用 C++20；本机用 NDK r26d 验证通过
+  NDK_VERSION: r26d
+  # 目标是 Android 7.0（API 24），与现有 jniLibs 中的 libadb.so 一致
+  API_LEVEL: ${{ inputs.api_level || '24' }}
+  CMAKE_POLICY_VERSION_MINIMUM: '3.5'
+
+jobs:
+  build-adb-34:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build cmake bison flex patch
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: Setup Android NDK (direct download)
+        run: |
+          curl -L --retry 5 --retry-delay 3 -o "$RUNNER_TEMP/ndk.zip" \
+            "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip"
+          unzip -q "$RUNNER_TEMP/ndk.zip" -d "$RUNNER_TEMP"
+          NDK_DIR="$RUNNER_TEMP/android-ndk-${NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=$NDK_DIR" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
+          test -f "$NDK_DIR/build/cmake/android.toolchain.cmake" && echo "NDK toolchain OK"
+
+      - name: Fetch AOSP Sources
+        working-directory: ${{ env.SDK_TOOLS_DIR }}
+        run: |
+          python3 get_source.py --tags "$AOSP_TAG" --jobs "$(nproc)"
+          # 源码不再需要 git 历史，删掉 .git 减小磁盘占用
+          find src -name .git -prune -exec rm -rf {} +
+
+      - name: Build Host Protoc
+        working-directory: ${{ env.SDK_TOOLS_DIR }}
+        run: python3 build.py --protoc-only --protoc-output host-tools/protoc
+
+      - name: Build ADB (4 ABIs, API 24)
+        working-directory: ${{ env.SDK_TOOLS_DIR }}
+        run: |
+          set -e
+          for ABI in arm64-v8a armeabi-v7a x86 x86_64; do
+            case "$ABI" in
+              arm64-v8a)   ARCH=aarch64 ;;
+              armeabi-v7a) ARCH=arm ;;
+              x86)         ARCH=i686 ;;
+              x86_64)      ARCH=x86_64 ;;
+            esac
+            echo "==================== building $ABI ($ARCH) ===================="
+            python3 build.py \
+              --toolchain ndk \
+              --arch "$ARCH" \
+              --link shared \
+              --api "$API_LEVEL" \
+              --protoc host-tools/protoc \
+              --build "build/$ARCH" \
+              --target adb
+
+            mkdir -p "$GITHUB_WORKSPACE/dist/$ABI"
+            cp "build/$ARCH/bin/platform-tools/adb" "$GITHUB_WORKSPACE/dist/$ABI/libadb.so"
+            rm -rf "build/$ARCH"
+          done
+
+      - name: Verify Artifacts
+        run: |
+          set -e
+          for ABI in arm64-v8a armeabi-v7a x86 x86_64; do
+            test -s "dist/$ABI/libadb.so"
+            file "dist/$ABI/libadb.so"
+          done
+
+      - name: Upload Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: libadb-android-34-api24-4abi
+          path: dist/
+          retention-days: 7

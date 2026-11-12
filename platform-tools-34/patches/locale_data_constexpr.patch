@@ -1,0 +1,20 @@
+--- a/src/base/libs/androidfw/include/androidfw/LocaleDataLookup.h
++++ b/src/base/libs/androidfw/include/androidfw/LocaleDataLookup.h
+@@ -24,7 +24,7 @@
+ 
+ constexpr size_t SCRIPT_LENGTH = 4;
+ 
+-constexpr inline uint32_t packLocale(const char* language, const char* region) {
++inline uint32_t packLocale(const char* language, const char* region) {
+     const unsigned char* lang = reinterpret_cast<const unsigned char*>(language);
+     const unsigned char* reg = reinterpret_cast<const unsigned char*>(region);
+     return (static_cast<uint32_t>(lang[0]) << 24u) |
+@@ -41,7 +41,7 @@
+     return (packed_locale & 0x0000FFFFLU) != 0;
+ }
+ 
+-constexpr inline uint32_t packScript(const char* script) {
++inline uint32_t packScript(const char* script) {
+     const unsigned char* s = reinterpret_cast<const unsigned char*>(script);
+     return ((static_cast<uint32_t>(s[0]) << 24u) |
+             (static_cast<uint32_t>(s[1]) << 16u) |

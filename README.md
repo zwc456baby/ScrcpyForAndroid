@@ -74,8 +74,10 @@ That project's sources are vendored in [`platform-tools/`](platform-tools)
 from the vendored copy. The build no longer downloads the upstream repository,
 so force-pushes there can't break it.
 
-> Note: the current build targets Android 11 (API 30) because AOSP 36's
-> `libbase`/`liblog` use fdsan and other APIs that are not available on older
-> releases. The existing `jniLibs` binaries are API 24, so adb already did not
-> run on Android 7.0 and below.
+> Note: [`platform-tools/`](platform-tools) builds platform-tools **36.0.0**
+> (API 30, Android 11+), while [`platform-tools-34/`](platform-tools-34)
+> builds platform-tools **34.0.0** for **API 24 (Android 7.0+)**, matching the
+> existing `jniLibs` binaries. Their workflows are
+> [`build-adb.yml`](.github/workflows/build-adb.yml) and
+> [`build-adb-34.yml`](.github/workflows/build-adb-34.yml).
 

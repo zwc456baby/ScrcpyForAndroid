@@ -1,0 +1,20 @@
+--- a/src/adb/sysdeps.h
++++ b/src/adb/sysdeps.h
+@@ -508,7 +508,17 @@
+ }
+ 
+ static inline int adb_getlogin_r(char* buf, size_t bufsize) {
++#if __ANDROID_API__ >= 28
+     return getlogin_r(buf, bufsize);
++#else
++    // bionic only added getlogin_r in API 28; getlogin() is available earlier.
++    const char* login = getlogin();
++    if (login == nullptr) return -1;
++    const size_t len = strlen(login);
++    if (len + 1 > bufsize) return ERANGE;
++    memcpy(buf, login, len + 1);
++    return 0;
++#endif
+ }
+ 
+ static inline int adb_read(borrowed_fd fd, void* buf, size_t len) {

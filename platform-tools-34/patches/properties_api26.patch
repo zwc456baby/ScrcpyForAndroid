@@ -1,0 +1,63 @@
+--- a/src/libbase/properties.cpp
++++ b/src/libbase/properties.cpp
+@@ -20,6 +20,19 @@
+ #define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
+ #include <sys/system_properties.h>
+ #include <sys/_system_properties.h>
++
++#if __ANDROID_API__ < 26
++struct timespec;
++extern "C" {
++uint32_t __system_property_area_serial();
++uint32_t __system_property_serial(const prop_info* pi);
++void __system_property_read_callback(const prop_info* pi,
++    void (*callback)(void* cookie, const char* name, const char* value, uint32_t serial),
++    void* cookie);
++bool __system_property_wait(const prop_info* pi, uint32_t old_serial,
++    uint32_t* new_serial, const struct timespec* relative_timeout);
++}
++#endif
+ #endif
+ 
+ #include <algorithm>
+--- a/src/logging/liblog/properties.cpp
++++ b/src/logging/liblog/properties.cpp
+@@ -34,6 +34,13 @@
+ #define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
+ #include <sys/_system_properties.h>
+ 
++#if __ANDROID_API__ < 29
++extern "C" {
++uint32_t __system_property_area_serial();
++uint32_t __system_property_serial(const prop_info* pi);
++}
++#endif
++
+ static pthread_mutex_t lock_loggable = PTHREAD_MUTEX_INITIALIZER;
+ 
+ static bool trylock() {
+--- a/src/core/libcutils/properties.cpp
++++ b/src/core/libcutils/properties.cpp
+@@ -96,6 +96,12 @@
+ #define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
+ #include <sys/_system_properties.h>
+ 
++#if __ANDROID_API__ < 26
++extern "C" void __system_property_read_callback(const prop_info* pi,
++    void (*callback)(void* cookie, const char* name, const char* value, uint32_t serial),
++    void* cookie);
++#endif
++
+ struct callback_data {
+     void (*callback)(const char* name, const char* value, void* cookie);
+     void* cookie;
+--- a/src/core/libcutils/trace-dev.inc
++++ b/src/core/libcutils/trace-dev.inc
+@@ -38,6 +38,7 @@
+ #if defined(__BIONIC__)
+ #define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
+ #include <sys/_system_properties.h>
++extern "C" uint32_t __system_property_serial(const prop_info* pi);
+ #endif
+ 
+ /**
