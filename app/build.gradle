@@ -7,7 +7,7 @@ android {
     namespace = 'org.client.scrcpy'
     flavorDimensions = ["default"]
 
-    compileSdk = 31
+    compileSdk = 36
 
     buildFeatures {
         buildConfig = true
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         minSdk = 21
-        targetSdk = 31
+        targetSdk = 36
         versionCode = 37
         versionName = "1.7.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

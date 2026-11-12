@@ -277,13 +277,6 @@ public class AdbShellActivity extends Activity {
         cleanup();
     }
 
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        cleanup();
-        finish();
-    }
-
     private void cleanup() {
         try {
             if (shellInput != null) {
@@ -328,13 +321,15 @@ public class AdbShellActivity extends Activity {
         scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Override
     protected void onResume() {
         super.onResume();
         try {
-            if (Build.VERSION.SDK_INT >= 33) {
-                // 4 is Context.RECEIVER_NOT_EXPORTED in API 33+
-                registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION), 4);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // RECEIVER_NOT_EXPORTED: still receives the system-sent USB permission result
+                registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION),
+                        Context.RECEIVER_NOT_EXPORTED);
             } else {
                 registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
             }

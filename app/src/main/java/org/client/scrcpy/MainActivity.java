@@ -26,6 +26,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -103,6 +105,7 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
     private SurfaceHolder.Callback surfaceCallback;
     private Scrcpy scrcpy;
     private long timestamp = 0;
+    private OnBackInvokedCallback backInvokedCallback;
 
     private LinearLayout linearLayout;
 
@@ -277,6 +280,11 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
             if (scrollView != null) {
                 scrollView.setVisibility(View.INVISIBLE);
             }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            backInvokedCallback = this::handleBackPressed;
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, backInvokedCallback);
         }
     }
 
@@ -1087,6 +1095,10 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
 
     @Override
     protected void onDestroy() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backInvokedCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backInvokedCallback);
+            backInvokedCallback = null;
+        }
         super.onDestroy();
         if (usbAdb != null) {
             usbAdb.close();
@@ -1140,11 +1152,17 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         }
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Override
     protected void onResume() {
         super.onResume();
         try {
-            registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION),
+                        Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(usbPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+            }
         } catch (Exception ignored) {
         }
         if (first_time) {
@@ -1177,8 +1195,13 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         result_of_Rotation = false;
     }
 
+    @SuppressLint("GestureBackNavigation")
     @Override
     public void onBackPressed() {
+        handleBackPressed();
+    }
+
+    private void handleBackPressed() {
         if (timestamp == 0) {
             if (serviceBound) {
                 timestamp = SystemClock.uptimeMillis();
