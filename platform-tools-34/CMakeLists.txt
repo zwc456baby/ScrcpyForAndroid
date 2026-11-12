@@ -27,6 +27,13 @@ project(sdk-tools C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 
+# Android 15+ supports 16 KB page sizes. NDK r26 still defaults to 4 KB
+# LOAD segment alignment, which makes Android 16 warn about incompatible
+# native libraries, so align the executables to 16 KB explicitly.
+if(ANDROID)
+    add_link_options(-Wl,-z,max-page-size=16384)
+endif()
+
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
