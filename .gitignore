@@ -13,3 +13,5 @@ app/src/main/assets/scrcpy-server.jar
 *.jks
 PROJECT_OVERVIEW.md
 
+# prebuilt adb binaries, built locally (see platform-tools-34/), not tracked
+/app/src/main/jniLibs/*/libadb.so
