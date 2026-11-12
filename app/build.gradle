@@ -97,4 +97,168 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }
 
+// ---------------------------------------------------------------------------
+// libadb.so is not tracked by git (see .gitignore), so build it from
+// platform-tools-34 with the NDK and copy it into src/main/jniLibs before
+// packaging. It is only rebuilt when the outputs are missing or the build
+// scripts/patches are newer than the outputs.
+//
+//   ./gradlew assembleScrcpyRelease              # builds libadb.so if needed
+//   ./gradlew :app:buildLibadb -PforceLibadb     # force a rebuild
+//   ./gradlew :app:buildLibadb -PlibadbAbis=arm64-v8a
+//   ./gradlew assembleScrcpyRelease -PskipLibadb # use existing binaries
+// ---------------------------------------------------------------------------
+def libadbDir = rootProject.file('platform-tools-34')
+def libadbArchByAbi = [
+        'arm64-v8a'  : 'aarch64',
+        'armeabi-v7a': 'arm',
+        'x86'        : 'i686',
+        'x86_64'     : 'x86_64',
+]
+def libadbApiLevel = (project.findProperty('libadbApi') ?: '24').toString()
+def libadbAbis = (project.findProperty('libadbAbis') ?: libadbArchByAbi.keySet().join(','))
+        .toString().split(',').collect { it.trim() }.findAll { it }
+libadbAbis.each { abi ->
+    if (!libadbArchByAbi.containsKey(abi)) {
+        throw new GradleException("Unknown ABI '${abi}' in -PlibadbAbis (valid: ${libadbArchByAbi.keySet().join(', ')})")
+    }
+}
+def libadbOutputs = libadbAbis.collect { file("src/main/jniLibs/${it}/libadb.so") }
+
+def resolveNdkDir = {
+    def candidates = []
+    ['ANDROID_NDK_HOME', 'ANDROID_NDK_ROOT'].each { name ->
+        def value = System.getenv(name)
+        if (value) candidates << value
+    }
+    def localProperties = new Properties()
+    def localPropertiesFile = rootProject.file('local.properties')
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.withInputStream { localProperties.load(it) }
+    }
+    if (localProperties.getProperty('ndk.dir')) {
+        candidates << localProperties.getProperty('ndk.dir')
+    }
+    def sdkDir = System.getenv('ANDROID_HOME') ?: System.getenv('ANDROID_SDK_ROOT') ?: localProperties.getProperty('sdk.dir')
+    if (sdkDir) {
+        candidates << "${sdkDir}/ndk/26.1.10909125"
+        def ndkRoot = new File("${sdkDir}/ndk")
+        if (ndkRoot.isDirectory()) {
+            def versions = ndkRoot.listFiles()?.findAll { it.isDirectory() }
+            if (versions) {
+                // Prefer the 26.x line (validated with 26.1.10909125), then newest first.
+                def preferred = versions.findAll { it.name.startsWith('26.') }.sort { a, b -> a.name <=> b.name }
+                def others = versions.findAll { !it.name.startsWith('26.') }.sort { a, b -> b.name <=> a.name }
+                (preferred + others).each { candidates << it.absolutePath }
+            }
+        }
+    }
+    candidates << "${System.getProperty('user.home')}/Library/Android/sdk/ndk/26.1.10909125"
+    def found = candidates.find { candidate ->
+        candidate && new File(candidate, 'build/cmake/android.toolchain.cmake').exists()
+    }
+    return found?.toString()
+}
+
+def buildLibadbTask = tasks.register('buildLibadb') {
+    group = 'build'
+    description = 'Builds libadb.so from platform-tools-34 with the NDK and copies it into src/main/jniLibs'
+
+    inputs.files(fileTree(libadbDir) {
+        include 'CMakeLists.txt'
+        include 'build.py'
+        include 'get_source.py'
+        include 'repository.json'
+        include 'platform-tools/**'
+        include 'lib/**'
+        include 'patches/**'
+    }).optional()
+    outputs.files(libadbOutputs)
+
+    onlyIf {
+        if (project.hasProperty('skipLibadb')) return false
+        if (project.hasProperty('forceLibadb')) return true
+        if (libadbOutputs.any { !it.exists() }) return true
+        def oldestOutput = libadbOutputs.collect { it.lastModified() }.min()
+        def newestInput = inputs.files.files.findAll { it.isFile() }.collect { it.lastModified() }.max() ?: 0L
+        return newestInput > oldestOutput
+    }
+
+    doLast {
+        if (!libadbDir.isDirectory()) {
+            throw new GradleException("platform-tools-34 not found at ${libadbDir}")
+        }
+        def ndkDir = resolveNdkDir()
+        if (!ndkDir) {
+            throw new GradleException('Android NDK not found. Set ANDROID_NDK_HOME or ndk.dir in local.properties.')
+        }
+        println "libadb: using NDK ${ndkDir}"
+
+        def python = System.getenv('PYTHON') ?: 'python3'
+        def env = new HashMap<String, String>(System.getenv())
+        env['ANDROID_NDK_HOME'] = ndkDir
+        env['ANDROID_NDK_ROOT'] = ndkDir
+        if (!env['CMAKE_POLICY_VERSION_MINIMUM']) {
+            env['CMAKE_POLICY_VERSION_MINIMUM'] = '3.5'
+        }
+
+        def run = { List<String> command ->
+            def args = command.collect { it.toString() }
+            println "libadb: > ${args.join(' ')}"
+            def processBuilder = new ProcessBuilder(args)
+            processBuilder.directory(libadbDir)
+            processBuilder.inheritIO()
+            processBuilder.environment().putAll(env)
+            if (processBuilder.start().waitFor() != 0) {
+                throw new GradleException("Command failed: ${args.join(' ')}")
+            }
+        }
+
+        if (!new File(libadbDir, 'src/adb').isDirectory()) {
+            def jobs = Runtime.runtime.availableProcessors().toString()
+            run([python, 'get_source.py', '--tags', 'platform-tools-34.0.0', '--jobs', jobs])
+        }
+        if (!new File(libadbDir, 'host-tools/protoc').exists()) {
+            run([python, 'build.py', '--protoc-only', '--protoc-output', 'host-tools/protoc'])
+            if (System.getenv('CI')) {
+                project.delete(new File(libadbDir, 'build/host-protoc'))
+            }
+        }
+
+        libadbAbis.each { abi ->
+            def arch = libadbArchByAbi[abi]
+            def buildDir = "build/gradle-${abi}"
+            run([python, 'build.py',
+                 '--toolchain', 'ndk',
+                 '--arch', arch,
+                 '--link', 'shared',
+                 '--api', libadbApiLevel,
+                 '--protoc', 'host-tools/protoc',
+                 '--build', buildDir,
+                 '--target', 'adb'])
+
+            def built = new File(libadbDir, "${buildDir}/bin/platform-tools/adb")
+            if (!built.isFile()) {
+                throw new GradleException("libadb build output missing: ${built}")
+            }
+            def destination = file("src/main/jniLibs/${abi}/libadb.so")
+            destination.parentFile.mkdirs()
+            java.nio.file.Files.copy(built.toPath(), destination.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            println "libadb: ${abi} -> ${destination} (${destination.length()} bytes)"
+
+            if (System.getenv('CI')) {
+                // Keep CI disk usage low: rebuilds are cheap enough on a clean runner.
+                project.delete(new File(libadbDir, buildDir))
+            }
+        }
+    }
+}
+
+tasks.configureEach { task ->
+    if (task.name == 'preBuild' || (task.name.startsWith('merge') && task.name.endsWith('JniLibFolders'))) {
+        task.dependsOn(buildLibadbTask)
+    }
+}
+
 

@@ -17,12 +17,31 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Setup Go (required by platform-tools-34/get_source.py)
+      uses: actions/setup-go@v5
+      with:
+        go-version: stable
+        cache: false
+
+    - name: Install libadb build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends patch
+
+    - name: Setup Android NDK r26d (for libadb.so)
+      run: |
+        curl -L --retry 5 --retry-delay 3 -o "$RUNNER_TEMP/ndk.zip" \
+          "https://dl.google.com/android/repository/android-ndk-r26d-linux.zip"
+        unzip -q "$RUNNER_TEMP/ndk.zip" -d "$RUNNER_TEMP"
+        echo "ANDROID_NDK_HOME=$RUNNER_TEMP/android-ndk-r26d" >> "$GITHUB_ENV"
+        echo "ANDROID_NDK_ROOT=$RUNNER_TEMP/android-ndk-r26d" >> "$GITHUB_ENV"
+
     - name: Decode Keystore
       env:
         ENCODED_STRING: ${{ secrets.SIGNING_KEY }}  # Uses the encoded signing key stored in GitHub Secrets.
       run: |
         if [ -n "$ENCODED_STRING" ]; then
-          echo $ENCODED_STRING | base64 -di > app/scrcpy.jks
+          echo "$ENCODED_STRING" | base64 -di > app/scrcpy.jks
           echo "Keystore decoded successfully."
         else
           echo "No signing key found, skipping..."
