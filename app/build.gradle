@@ -50,7 +50,9 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled = false
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (file("scrcpy.jks").exists()) {
                 signingConfig = signingConfigs.release
             }

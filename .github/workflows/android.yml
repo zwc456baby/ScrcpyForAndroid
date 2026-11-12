@@ -17,12 +17,6 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Setup Go (required by platform-tools-34/get_source.py)
-      uses: actions/setup-go@v5
-      with:
-        go-version: stable
-        cache: false
-
     - name: Install libadb build dependencies
       run: |
         sudo apt-get update

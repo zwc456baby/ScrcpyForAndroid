@@ -124,7 +124,7 @@ def main():
     args = parser.parse_args()
 
     # check necessary packages
-    for command in ('git', 'patch', 'go', 'bison', 'flex'):
+    for command in ('git', 'patch'):
         check(command)
 
     repos = json.loads((ROOT / 'repository.json').read_text())
