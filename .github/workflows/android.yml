@@ -2,6 +2,33 @@ name: Android CI
 
 on:
   workflow_dispatch:  # 手动触发
+    inputs:
+      publish_release:
+        description: '发布到 GitHub Release（上传 APK 并自动生成更新日志）'
+        type: boolean
+        default: false
+      release_tag:
+        description: 'Release 标签，留空则使用 v{versionName}'
+        required: false
+        default: ''
+      release_title:
+        description: 'Release 标题，留空则使用 v{versionName}'
+        required: false
+        default: ''
+      prerelease:
+        description: '标记为预发布（Pre-release）'
+        type: boolean
+        default: false
+      min_commit_length:
+        description: '更新日志中提交描述的最小长度（中文按 2 个字符宽度计算）'
+        required: false
+        default: '15'
+
+permissions:
+  contents: write  # 普通构建只需读权限，发布 Release 需要写权限
+
+env:
+  MIN_COMMIT_LENGTH: ${{ inputs.min_commit_length || '15' }}
 
 jobs:
   build:
@@ -10,12 +37,57 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0   # 生成更新日志需要完整的提交历史和 tag
+        fetch-tags: true
+
     - name: set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
+
+    - name: Read app version
+      id: version
+      run: |
+        VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle | head -n1)
+        VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle | head -n1)
+        echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+        echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+        echo "App version: $VERSION_NAME ($VERSION_CODE)"
+
+    - name: Determine release metadata
+      id: release
+      if: ${{ inputs.publish_release }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        INPUT_TAG: ${{ inputs.release_tag }}
+        INPUT_TITLE: ${{ inputs.release_title }}
+        PRERELEASE: ${{ inputs.prerelease }}
+      run: |
+        TAG="$INPUT_TAG"
+        if [ -z "$TAG" ]; then
+          TAG="v${{ steps.version.outputs.version_name }}"
+        fi
+        TITLE="$INPUT_TITLE"
+        if [ -z "$TITLE" ]; then
+          TITLE="v${{ steps.version.outputs.version_name }}"
+        fi
+        {
+          echo "tag=$TAG"
+          echo "title=$TITLE"
+          echo "prerelease=$PRERELEASE"
+        } >> "$GITHUB_OUTPUT"
+        echo "Release tag: $TAG"
+        echo "Release title: $TITLE"
+        echo "Pre-release: $PRERELEASE"
+
+        # 已存在则直接失败，避免误覆盖已发布的版本（在构建前检查，省时间）
+        if gh release view "$TAG" >/dev/null 2>&1; then
+          echo "Release $TAG 已存在，拒绝覆盖。请升级 versionName/versionCode，或指定新的 release_tag。" >&2
+          exit 1
+        fi
 
     - name: Install libadb build dependencies
       run: |
@@ -57,3 +129,110 @@ jobs:
         path: |
           app/build/outputs/apk/scrcpy/release/*.apk
         retention-days: 90  # Sets the artifact retention period to 90 days.
+
+    - name: Generate release notes
+      if: ${{ inputs.publish_release }}
+      env:
+        TAG: ${{ steps.release.outputs.tag }}
+        VERSION_NAME: ${{ steps.version.outputs.version_name }}
+        VERSION_CODE: ${{ steps.version.outputs.version_code }}
+      run: |
+        python3 - <<'PY'
+        import os
+        import re
+        import subprocess
+        import unicodedata
+
+        tag = os.environ["TAG"]
+        version_name = os.environ["VERSION_NAME"]
+        version_code = os.environ["VERSION_CODE"]
+        min_len = int(os.environ.get("MIN_COMMIT_LENGTH", "15"))
+        repo = os.environ["GITHUB_REPOSITORY"]
+
+        def git(*args):
+            return subprocess.run(
+                ["git", *args], check=True, capture_output=True, text=True
+            ).stdout
+
+        # 找上一个 release tag；排除本次要创建的 tag，便于重复运行时也能生成日志
+        describe = subprocess.run(
+            ["git", "describe", "--tags", "--abbrev=0", "--exclude", tag],
+            capture_output=True, text=True,
+        )
+        prev_tag = describe.stdout.strip() if describe.returncode == 0 else ""
+        rev_range = f"{prev_tag}..HEAD" if prev_tag else "HEAD"
+
+        def width(text):
+            # 中文等宽字符按 2 计算，避免中文提交被误判为“过短”
+            return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in text)
+
+        noise = re.compile(
+            r"^(wip|tmp|temp|test|debug|update|fix|fixes|minor|typo|cleanup|format|revert)\W*$"
+            r"|^(bump|update)\s+(the\s+)?version\b",
+            re.IGNORECASE,
+        )
+
+        seen = set()
+        commits = []
+        for line in git("log", rev_range, "--no-merges", "--pretty=format:%h%x09%s").splitlines():
+            if "\t" not in line:
+                continue
+            sha, subject = line.split("\t", 1)
+            subject = re.sub(r"\s+", " ", subject).strip()
+            if not subject or width(subject) < min_len or noise.search(subject):
+                continue
+            key = subject.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            commits.append((sha, subject))
+
+        lines = ["## 更新内容", ""]
+        if prev_tag:
+            lines.append(f"自 {prev_tag} 以来的提交：")
+        else:
+            lines.append("本次发布的提交：")
+        lines.append("")
+        if commits:
+            lines.extend(f"- {subject} ({sha})" for sha, subject in commits)
+        else:
+            lines.append("- 本次没有符合条件的提交记录")
+        lines.append("")
+        lines.append("---")
+        lines.append(f"版本：{version_name} ({version_code})")
+        if prev_tag:
+            lines.append("")
+            lines.append(f"完整变更：https://github.com/{repo}/compare/{prev_tag}...{tag}")
+
+        notes = "\n".join(lines) + "\n"
+        with open("release-notes.md", "w", encoding="utf-8") as f:
+            f.write(notes)
+
+        print(notes)
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+            f.write(notes)
+        PY
+
+    - name: Publish GitHub Release
+      if: ${{ inputs.publish_release }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG: ${{ steps.release.outputs.tag }}
+        TITLE: ${{ steps.release.outputs.title }}
+        PRERELEASE: ${{ steps.release.outputs.prerelease }}
+      run: |
+        set -euo pipefail
+        APK=$(find app/build/outputs/apk/scrcpy/release -maxdepth 1 -name '*.apk' -print -quit)
+        if [ -z "$APK" ]; then
+          echo "未找到 APK，构建可能失败" >&2
+          exit 1
+        fi
+        echo "APK: $APK"
+
+        ARGS=(--target "$GITHUB_SHA" --title "$TITLE" --notes-file release-notes.md)
+        if [ "$PRERELEASE" = "true" ]; then
+          ARGS+=(--prerelease)
+        fi
+
+        echo "创建 Release $TAG（标题：$TITLE，prerelease：$PRERELEASE）"
+        gh release create "$TAG" "$APK" "${ARGS[@]}"
