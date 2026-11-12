@@ -1,3 +1,2 @@
 -dontobfuscate
--dontshrink
 -dontoptimize
