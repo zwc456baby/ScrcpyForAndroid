@@ -75,4 +75,43 @@ public final class SurfaceControl {
             throw new AssertionError(e);
         }
     }
+
+    // Display power modes (android.view.SurfaceControl, hidden API)
+    public static final int POWER_MODE_OFF = 0;
+    public static final int POWER_MODE_NORMAL = 2;
+
+    /**
+     * Get the physical display ids (API 26+). Returns null when unavailable.
+     */
+    public static long[] getPhysicalDisplayIds() {
+        try {
+            return (long[]) CLASS.getMethod("getPhysicalDisplayIds").invoke(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Get the token of a physical display (API 26+). Returns null when unavailable.
+     */
+    public static IBinder getPhysicalDisplayToken(long physicalDisplayId) {
+        try {
+            return (IBinder) CLASS.getMethod("getPhysicalDisplayToken", long.class).invoke(null, physicalDisplayId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Set the power mode of a display (scrcpy -S / --turn-screen-off).
+     * Returns false when the hidden API is unavailable on this device.
+     */
+    public static boolean setDisplayPowerMode(IBinder displayToken, int mode) {
+        try {
+            CLASS.getMethod("setDisplayPowerMode", IBinder.class, int.class).invoke(null, displayToken, mode);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

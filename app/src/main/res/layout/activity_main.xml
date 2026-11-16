@@ -423,6 +423,36 @@
                     android:textColor="@color/white"
                     android:textSize="15sp" />
 
+                <Switch
+                    android:id="@+id/switch_turn_screen_off"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginRight="10dp"
+                    android:background="@color/btn_color_nomal"
+                    android:gravity="center_vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:text="@string/switch_turn_screen_off"
+                    android:textColor="@color/white"
+                    android:textSize="15sp" />
+
+                <Switch
+                    android:id="@+id/switch_keep_active"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginRight="10dp"
+                    android:background="@color/btn_color_nomal"
+                    android:gravity="center_vertical"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:text="@string/switch_keep_active"
+                    android:textColor="@color/white"
+                    android:textSize="15sp" />
+
             </LinearLayout>
 
             <Button

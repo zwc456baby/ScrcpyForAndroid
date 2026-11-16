@@ -52,6 +52,8 @@
     <string name="switch0">Viewing mode (no control)</string>
     <string name="switch1">Bottom control button (back button)</string>
     <string name="switch_audio">Enable audio forwarding</string>
+    <string name="switch_turn_screen_off">Turn off device screen (-S)</string>
+    <string name="switch_keep_active">Keep device active</string>
 
     <string name="connect_tips">Tips: You need to enable wireless debugging on your phone\n\t\tReset adb port command: adb tcpip 5555</string>
     <string name="please_wait">Connecting …</string>

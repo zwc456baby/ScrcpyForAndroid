@@ -112,6 +112,43 @@ public final class Device {
         return ServiceManager.getPowerManager().isScreenOn();
     }
 
+    /**
+     * Turn the physical display off/on (scrcpy -S / --turn-screen-off).
+     * The mirror capture keeps working because SurfaceFlinger still composites
+     * the display content; only the panel/backlight is powered off.
+     * Returns false when the hidden API is unavailable on this device.
+     */
+    public boolean setScreenPowerMode(boolean on) {
+        try {
+            long[] ids = org.server.scrcpy.wrappers.SurfaceControl.getPhysicalDisplayIds();
+            if (ids == null || ids.length == 0) {
+                Ln.w("setScreenPowerMode: no physical display ids");
+                return false;
+            }
+            android.os.IBinder token =
+                    org.server.scrcpy.wrappers.SurfaceControl.getPhysicalDisplayToken(ids[0]);
+            if (token == null) {
+                Ln.w("setScreenPowerMode: no physical display token");
+                return false;
+            }
+            int mode = on ? org.server.scrcpy.wrappers.SurfaceControl.POWER_MODE_NORMAL
+                    : org.server.scrcpy.wrappers.SurfaceControl.POWER_MODE_OFF;
+            return org.server.scrcpy.wrappers.SurfaceControl.setDisplayPowerMode(token, mode);
+        } catch (Exception e) {
+            Ln.w("setScreenPowerMode failed: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * Simulate user activity to keep the device awake (scrcpy --keep-active).
+     * Does not change any global power setting.
+     */
+    public boolean userActivity() {
+        return ServiceManager.getPowerManager()
+                .userActivity(android.os.SystemClock.uptimeMillis(), false);
+    }
+
     public void registerRotationWatcher(IRotationWatcher rotationWatcher) {
         ServiceManager.getWindowManager().registerRotationWatcher(rotationWatcher);
     }

@@ -14,6 +14,8 @@ public class Options {
     private String videoCodec = CODEC_H264;
     private String videoEncoder = DEFAULT_ENCODER;
     private int frameRate = 60;
+    private boolean turnScreenOff;
+    private boolean keepActive;
 
     public String getIp() {
         return ip;
@@ -91,6 +93,22 @@ public class Options {
         return videoEncoder != null && !videoEncoder.isEmpty() && !DEFAULT_ENCODER.equals(videoEncoder);
     }
 
+    public boolean isTurnScreenOff() {
+        return turnScreenOff;
+    }
+
+    public void setTurnScreenOff(boolean turnScreenOff) {
+        this.turnScreenOff = turnScreenOff;
+    }
+
+    public boolean isKeepActive() {
+        return keepActive;
+    }
+
+    public void setKeepActive(boolean keepActive) {
+        this.keepActive = keepActive;
+    }
+
     public static String normalizeCodec(String codec) {
         if (codec == null) {
             return CODEC_H264;
@@ -124,6 +142,12 @@ public class Options {
         }
         if (args.length > 7) {
             options.setFrameRate(Integer.parseInt(args[7]));
+        }
+        if (args.length > 8) {
+            options.setTurnScreenOff(Boolean.parseBoolean(args[8]));
+        }
+        if (args.length > 9) {
+            options.setKeepActive(Boolean.parseBoolean(args[9]));
         }
         return options;
     }

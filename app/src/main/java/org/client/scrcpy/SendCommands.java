@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import org.client.scrcpy.utils.AdbHelper;
+import org.client.scrcpy.utils.PreUtils;
 import org.client.scrcpy.utils.ThreadUtils;
 
 import java.util.ArrayList;
@@ -34,6 +35,8 @@ public class SendCommands {
         options.setBitRate(bitrate);
         options.setTunnelForward(true);
         options.setEnableAudioForward(enableAudio);
+        options.setTurnScreenOff(PreUtils.get(context, Constant.TURN_SCREEN_OFF, false));
+        options.setKeepActive(PreUtils.get(context, Constant.KEEP_ACTIVE, false));
         return SendAdbCommands(context, ip, port, forwardport, options);
     }
 

@@ -4,6 +4,8 @@ package org.client.scrcpy;
 public class Constant {
 
     public static final String AUDIO_FORWARD = "enable_audio_forward";
+    public static final String TURN_SCREEN_OFF = "turn_screen_off";
+    public static final String KEEP_ACTIVE = "keep_active";
     public static final String CONTROL_NAV = "control_nav";
     public static final String CONTROL_NO = "no_control";
     public static final String CONTROL_REMOTE_ADDR = "control_remote_addr";

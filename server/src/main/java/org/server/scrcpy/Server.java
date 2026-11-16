@@ -17,6 +17,40 @@ public final class Server {
 
         ip = options.getIp();
         final Device device = new Device(options);
+
+        // --turn-screen-off (-S): power the physical display off at start;
+        // the mirror capture keeps streaming. Restored on exit.
+        final boolean turnScreenOff = options.isTurnScreenOff();
+        if (turnScreenOff) {
+            if (device.setScreenPowerMode(false)) {
+                Ln.i("Screen turned off (-S)");
+            } else {
+                Ln.w("Could not turn screen off (-S not supported on this device)");
+            }
+        }
+
+        // --keep-active: simulate user activity periodically so the device
+        // does not fall asleep, without changing any global power setting.
+        Thread keepActiveThread = null;
+        if (options.isKeepActive()) {
+            keepActiveThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        while (!Thread.currentThread().isInterrupted()) {
+                            Thread.sleep(10000);
+                            device.userActivity();
+                        }
+                    } catch (InterruptedException e) {
+                        // stopped
+                    }
+                }
+            }, "keep-active");
+            keepActiveThread.setDaemon(true);
+            keepActiveThread.start();
+            Ln.i("Keep-active started");
+        }
+
         try (DroidConnection connection = DroidConnection.open(ip)) {
             ScreenEncoder screenEncoder = new ScreenEncoder(options);
 
@@ -31,6 +65,14 @@ public final class Server {
                 // this is expected on close
                 Ln.d("Screen streaming stopped");
 
+            }
+        } finally {
+            if (keepActiveThread != null) {
+                keepActiveThread.interrupt();
+            }
+            if (turnScreenOff) {
+                device.setScreenPowerMode(true);
+                Ln.i("Screen turned back on");
             }
         }
     }

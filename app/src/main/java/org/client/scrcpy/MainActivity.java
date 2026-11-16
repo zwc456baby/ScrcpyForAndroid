@@ -561,6 +561,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         Switch aSwitch0 = findViewById(R.id.switch0);
         Switch aSwitch1 = findViewById(R.id.switch1);
         Switch audioForwardSwitch = findViewById(R.id.switch_audio_enable);
+        Switch turnScreenOffSwitch = findViewById(R.id.switch_turn_screen_off);
+        Switch keepActiveSwitch = findViewById(R.id.switch_keep_active);
         String historySpServerAdr = PreUtils.get(context, Constant.CONTROL_REMOTE_ADDR, "");
         if (TextUtils.isEmpty(historySpServerAdr)) {
             String[] historyList = getHistoryList();
@@ -578,6 +580,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         aSwitch0.setChecked(PreUtils.get(context, Constant.CONTROL_NO, false));
         aSwitch1.setChecked(PreUtils.get(context, Constant.CONTROL_NAV, false));
         audioForwardSwitch.setChecked(PreUtils.get(context, Constant.AUDIO_FORWARD, true));
+        turnScreenOffSwitch.setChecked(PreUtils.get(context, Constant.TURN_SCREEN_OFF, false));
+        keepActiveSwitch.setChecked(PreUtils.get(context, Constant.KEEP_ACTIVE, false));
 
         setSpinner(R.array.options_bitrate_keys, R.id.spinner_video_bitrate, Constant.PREFERENCE_SPINNER_BITRATE);
         setSpinner(R.array.options_codec_keys, R.id.spinner_video_codec, Constant.PREFERENCE_SPINNER_CODEC);
@@ -825,9 +829,13 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
         Switch a_Switch0 = findViewById(R.id.switch0);
         Switch a_Switch1 = findViewById(R.id.switch1);
         Switch audioEnableSwitch = findViewById(R.id.switch_audio_enable);
+        Switch turnScreenOffSwitch = findViewById(R.id.switch_turn_screen_off);
+        Switch keepActiveSwitch = findViewById(R.id.switch_keep_active);
         PreUtils.put(context, Constant.CONTROL_NO, a_Switch0.isChecked());
         PreUtils.put(context, Constant.CONTROL_NAV, a_Switch1.isChecked());
         PreUtils.put(context, Constant.AUDIO_FORWARD, audioEnableSwitch.isChecked());
+        PreUtils.put(context, Constant.TURN_SCREEN_OFF, turnScreenOffSwitch.isChecked());
+        PreUtils.put(context, Constant.KEEP_ACTIVE, keepActiveSwitch.isChecked());
 
         String resolutionValue = getResources().getStringArray(R.array.options_resolution_values)[videoResolutionSpinner.getSelectedItemPosition()];
         autoResolutionEnabled = videoResolutionSpinner.getSelectedItemPosition() == Constant.RESOLUTION_AUTO_INDEX
@@ -1341,6 +1349,8 @@ public class MainActivity extends Activity implements Scrcpy.ServiceCallbacks, S
                 options.setBitRate(videoBitrate);
                 options.setTunnelForward(true);
                 options.setEnableAudioForward(PreUtils.get(context, Constant.AUDIO_FORWARD, true));
+                options.setTurnScreenOff(PreUtils.get(context, Constant.TURN_SCREEN_OFF, false));
+                options.setKeepActive(PreUtils.get(context, Constant.KEEP_ACTIVE, false));
                 options.setVideoCodec(videoCodec);
                 options.setVideoEncoder(videoEncoder);
                 options.setFrameRate(videoFrameRate);
